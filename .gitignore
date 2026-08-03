@@ -1,0 +1,94 @@
+# Environment and secrets (Phase 0 — never commit keys)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Virtual environments / packaging
+.venv/
+venv/
+env/
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+
+# Testing and coverage (pytest + Phase E evals)
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.hypothesis/
+.cache/
+
+# Go (optional Phase G)
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+vendor/
+
+# Terraform (infra/)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+.terraformrc
+terraform.rc
+
+# Kubernetes / local cluster tooling (commit manifests under deploy/k8s/)
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+.kube/
+
+# Docker
+*.tar
+
+# Azure CLI / local auth leftovers
+*.pem
+*.key
+.azure/
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs / local scratch
+*.log
+logs/
+tmp/
+temp/
