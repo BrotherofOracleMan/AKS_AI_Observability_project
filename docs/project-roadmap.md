@@ -1,41 +1,48 @@
-# Project Roadmap: AKS AI Observability
+# Project Roadmap: AI on Kubernetes
 
-Learning-focused guide for a portfolio project: deploy a FastAPI **Azure OpenAI proxy** on **AKS**, observe it like production software, and optionally gate deploys with a small **eval suite**.
+Learning-focused guide: containerize a FastAPI **Azure OpenAI proxy**, run it on **Kubernetes** (Kind first), then deploy the **same manifests** to **AKS**.
+
+Repo folder may still be named `aks-ai-observability`; the hero skills are **Docker + Kubernetes + AI**. Heavy observability is out of scope here (covered at work).
 
 ---
 
 ## North star
 
 ```text
-Client  -->  FastAPI on AKS  -->  Azure OpenAI
-                |                    |
-                +-- metrics/logs ----+
-                |
-           CI evals (golden prompts) can fail the pipeline
+Client  -->  FastAPI (container on K8s)  -->  Azure OpenAI
+                    ↑
+         Docker image + K8s manifests
+         (Kind first, then AKS)
 ```
 
-**Interview one-liner:** “I ran an LLM behind Kubernetes with latency/cost/error monitoring, and CI quality gates so regressions don’t ship.”
+**Interview one-liner:** “I containerized an LLM proxy, ran it on Kubernetes locally, then on AKS in front of Azure OpenAI — with keyless identity, and thin RAG/evals/GitOps on top.”
 
 ---
 
 ## Goals / non-goals
 
-### Goals
+### Goals (core — Phases 0–5)
 
-- Ship a real **inference wrapper** (not a notebook)
-- Run it on **AKS** (not only App Service)
-- Emit and dashboard **request + token + cost** signals
-- Alert on a few SLOs (errors, latency, cost/429 spike)
-- Keep a **thin SDET chapter**: golden-prompt evals in CI
-- Document architecture + runbooks in-repo
+- Ship a real **API proxy** in front of Azure OpenAI (not a notebook)
+- **Dockerize** the app and run it with env-injected config
+- Learn **Kubernetes primitives** on Kind (Deployment, Service, probes, Secret)
+- Provision **AKS with Terraform** and deploy the **same** manifests; destroy when idle
+- Keep **thin** ops only: structured logs + basic token/request logging; `kubectl` for pod health
+- Thin CI: pytest (mocked OpenAI) → build image (optional AKS deploy)
 
-### Non-goals (v1)
+### Goals (advanced — after core)
 
-- Training custom models / fine-tuning
-- Full RAG product (can be a later phase)
-- Multi-cluster, service mesh, GPU nodes
-- Building a Promptfoo competitor
-- Deep ML theory
+- **Workload Identity** — pod → Azure OpenAI without long-lived keys in Secrets
+- **Thin RAG** — tiny doc set, retrieve-then-generate behind the same proxy
+- **Thin evals** — golden prompts that can fail CI (quality gate, not dashboards)
+- **GitOps** — cluster desired state from git (Argo CD or Flux)
+
+### Non-goals
+
+- Heavy Azure Monitor / Prometheus / SLO dashboard portfolio work (doing similar at work)
+- GPU node pools, service mesh, multi-cluster
+- Fine-tuning / training jobs
+- Go companion, deep ML theory, production multi-region platforms
 
 ---
 
@@ -44,18 +51,14 @@ Client  -->  FastAPI on AKS  -->  Azure OpenAI
 ```
 ┌─────────────────┐     ┌──────────────────────────┐     ┌─────────────────┐
 │  Client / CI    │────▶│  FastAPI (Deployment)    │────▶│  Azure OpenAI   │
-│  curl, pytest   │     │  /health  /v1/chat       │     │  chat + tokens  │
-└─────────────────┘     │  OTel metrics/logs       │     └─────────────────┘
-                        └────────────┬─────────────┘
-                                     │
-                                     ▼
-                        ┌──────────────────────────┐
-                        │  Azure Monitor / AMP     │
-                        │  dashboards + alerts     │
-                        └──────────────────────────┘
+│  curl, pytest   │     │  /health  /v1/chat       │     │  (+ optional    │
+└─────────────────┘     │  logs + basic usage      │     │   RAG context)  │
+                        └──────────────────────────┘     └─────────────────┘
 
-Infra: Terraform → RG + AKS (+ ACR optional)
-CI:    test → (eval) → build image → deploy to AKS
+Path:  code → Docker image → Kind (learn) → Terraform AKS (demo)
+CI:    pytest (mocked OpenAI) → build/push image → optional deploy / GitOps
+
+Advanced (later): Workload Identity | thin RAG | thin evals | GitOps
 ```
 
 ### Suggested repo layout (create as you go)
@@ -65,64 +68,33 @@ aks-ai-observability/
   README.md
   docs/
     project-roadmap.md      # this file
-    architecture.md         # fill in after Phase 1–2
-    runbook.md              # alerts + how to debug
+    architecture.md         # fill in after Kind/AKS
+    runbook.md              # create/destroy AKS + how to debug pods
   src/
-    main.py                 # FastAPI app
-    openai_client.py        # Azure OpenAI calls
-    metrics.py              # counters / histograms
-    config.py               # env settings
-  go/                       # optional Phase G (proxy or CLI)
+    main.py                 # start here (health + stub chat); split later
   tests/
-    test_health.py
-    test_chat_unit.py       # mocked OpenAI
-    evals/
-      golden_cases.json
-      test_golden_evals.py  # optional Phase E
+    test_app.py
+    evals/                  # optional Phase 8
   deploy/
-    k8s/                    # Deployment, Service, Ingress, probes
+    k8s/                    # Deployment, Service, probes, Secret examples
   infra/                    # Terraform (AKS, RG, …)
   .github/workflows/
   Dockerfile
-  pyproject.toml / requirements.txt
+  pyproject.toml
 ```
 
+Later: `config.py`, `openai_client.py` when Phase 1 needs them.
 ---
+## Thin ops (not the centerpiece)
 
-## What you will monitor
+Enough to debug and talk about cost — not a full observability product.
 
-### API (your service)
-
-| Signal | Why |
-|--------|-----|
-| Request rate | Traffic / load |
-| Error rate (4xx/5xx) | Availability |
-| Latency p50 / p95 / p99 | SLO / UX |
-| In-flight / concurrency | Saturation |
-
-### Model / Azure OpenAI
-
-| Signal | Why |
-|--------|-----|
-| Prompt + completion tokens | Cost drivers |
-| Estimated $ per request / per hour | FinOps story |
-| Provider errors (429, 5xx, content filter) | Capacity / safety |
-| Model / deployment name | Debugging config drift |
-| Time-to-first-token (if streaming) | Streaming UX |
-
-### Kubernetes
-
-| Signal | Why |
-|--------|-----|
-| Pod restarts / crash loops | Bad deploys / OOM |
-| CPU / memory | Rightsizing |
-| Ready replicas / HPA events | Scaling behavior |
-
-### Starter alerts (pick 3)
-
-1. Error rate > threshold for N minutes  
-2. p95 latency > budget  
-3. 429 storm **or** token/$ burn spike  
+| Signal | How you see it (v1) |
+|--------|---------------------|
+| Request / error / latency | Structured logs from the proxy |
+| Tokens per call | Log `usage` from Azure OpenAI responses |
+| Pod health / restarts | `kubectl get pods`, describe, logs |
+| 429 / provider errors | Log status; keep OpenAI quotas low |
 
 ---
 
@@ -130,230 +102,222 @@ aks-ai-observability/
 
 Mark items `[x]` as you finish. Stay on one phase until the “done when” bar is met.
 
-**Readings:** each phase has a quick-reference table. **Known** = already familiar (refresher); **New** = focus study time. Prefer Microsoft Learn + project docs for interview vocabulary.
+**Readings:** **Known** = already familiar (refresher); **New** = focus study time.
 
 ### Phase 0 — Repo + local API skeleton
 
-**Learn:** project layout, settings via env, health endpoint.
+**Learn:** project layout, health endpoint, stub chat.
 
-- [ ] Create git repo; Python 3.13 + uv/pip; FastAPI app
-- [ ] `GET /health` → `{"status":"ok"}`
-- [ ] `POST /v1/chat` stub (echo or fake response) with Pydantic schemas
-- [ ] `.env.example` (no secrets in git)
-- [ ] Basic pytest for health + schema validation
-- [ ] README: how to run locally
+- [x] Create git repo; Python 3.13 + uv/pip; FastAPI app
+- [x] `GET /health` → `{"status":"ok"}`
+- [x] `POST /v1/chat` stub (echo or fake response) with Pydantic schemas
+- [x] `.env.example` (no secrets in git)
+- [x] Basic pytest for health + schema validation
+- [x] README: how to run locally
 
 **Done when:** `uvicorn` locally + pytest green with no Azure yet.
 
 | Reading | Why | Status |
 |---------|-----|--------|
-| [FastAPI tutorial](https://fastapi.tiangolo.com/tutorial/) | App layout, Pydantic, DI | Known |
-| [Settings / env](https://fastapi.tiangolo.com/advanced/settings/) | Config without secrets in code | Known |
-| [Twelve-Factor — Config](https://12factor.net/config/) | Same env pattern locally → AKS | Known |
+| [FastAPI tutorial](https://fastapi.tiangolo.com/tutorial/) | App layout, Pydantic | Known |
+| [Twelve-Factor — Config](https://12factor.net/config/) | Same env pattern → Docker → K8s | Known |
 | [httpx / TestClient testing](https://fastapi.tiangolo.com/tutorial/testing/) | pytest for the proxy | Known |
-| [LLM / AI gateway pattern](https://learn.microsoft.com/azure/api-management/azure-openai-api-from-specification) | Why a thin FastAPI front door (not chat UI) | New |
+| [LLM / AI gateway pattern](https://learn.microsoft.com/azure/api-management/azure-openai-api-from-specification) | Why a thin FastAPI front door | New |
 
 ---
 
 ### Phase 1 — Azure OpenAI integration
 
-**Learn:** Azure OpenAI (or AI Foundry) deployments, keys/identity, token usage in responses.
+**Learn:** Azure OpenAI deployments, keys, token usage in responses.
 
 - [ ] Create Azure OpenAI resource + chat deployment (cheapest suitable model)
-- [ ] Wire real client in `openai_client.py` (API key locally; prefer Managed Identity later on AKS)
+- [ ] Wire real client (split `openai_client.py` / `config.py` when it helps)
 - [ ] Return model text + record `usage` tokens on each call
 - [ ] Structured logging: request id, latency_ms, tokens, status
 - [ ] Unit tests with **mocked** OpenAI (no spend in CI)
 
-**Done when:** local curl to `/v1/chat` hits Azure OpenAI; CI tests mock the provider.
+**Done when:** local curl to `/v1/chat` hits Azure OpenAI; tests mock the provider.
 
 **Cost note:** set low quotas; never commit keys; destroy lab resources when idle.
 
 | Reading | Why | Status |
 |---------|-----|--------|
-| [Azure OpenAI concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/models) | Deployments vs models; tokens → cost/capacity | New |
-| [Azure OpenAI quickstart (Python)](https://learn.microsoft.com/azure/ai-services/openai/chatgpt-quickstart) | First real chat call + deployment names | New |
-| [Completions / SDK usage](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/completions) | Tokens in responses, chat shape | New |
-| [Quotas & limits](https://learn.microsoft.com/azure/ai-services/openai/quotas-limits) | 429s, lab quotas, bill spikes | New |
-| [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/) | Token/$ intuition for logging | New |
+| [Azure OpenAI concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/models) | Deployments vs models; tokens → cost | New |
+| [Azure OpenAI quickstart (Python)](https://learn.microsoft.com/azure/ai-services/openai/chatgpt-quickstart) | First real chat call | New |
+| [Completions / SDK usage](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/completions) | Tokens in responses | New |
+| [Quotas & limits](https://learn.microsoft.com/azure/ai-services/openai/quotas-limits) | 429s, lab quotas | New |
+| [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/) | Token/$ intuition | New |
 
 ---
 
-### Phase 2 — Containerize
+### Phase 2 — Docker
 
-**Learn:** Docker multi-stage or slim image, non-root user, 12-factor config.
+**Learn:** ship the API as an image; config via env (12-factor).
 
-- [ ] `Dockerfile` runs uvicorn
-- [ ] Run container locally with env vars
+- [ ] `Dockerfile` runs uvicorn (slim image; non-root if practical)
+- [ ] `docker run` with env vars for OpenAI endpoint/key/deployment
 - [ ] Optional: push to **Azure Container Registry (ACR)**
 
 **Done when:** `docker run` serves `/health` and chat with env-injected secrets.
 
 | Reading | Why | Status |
 |---------|-----|--------|
-| [What is a container?](https://learn.microsoft.com/dotnet/architecture/microservices/container-docker-introduction/) | Containers vs VMs mental model | Known |
-| [Docker best practices](https://docs.docker.com/build/building/best-practices/) | Slim image, non-root, layer caching | Known basics; **New** for shipping the API |
+| [What is a container?](https://learn.microsoft.com/dotnet/architecture/microservices/container-docker-introduction/) | Containers vs VMs | Known |
+| [Docker best practices](https://docs.docker.com/build/building/best-practices/) | Slim image, layers, non-root | Known basics; **New** for shipping the API |
+| [Dockerfile reference](https://docs.docker.com/reference/dockerfile/) | `FROM`, `COPY`, `CMD` | New |
 
 ---
 
-### Phase 3 — Kubernetes locally (Kind / minikube)
+### Phase 3 — Kubernetes locally (Kind)
 
-**Learn:** Deployment, Service, probes, ConfigMap/Secret — before paying for AKS.
+**Learn:** Deployment, Service, probes, Secret — before paying for AKS. This is the **main** K8s learning phase.
 
-- [ ] Kind or minikube cluster
-- [ ] Manifests: Deployment + Service + liveness/readiness on `/health`
-- [ ] Secret for OpenAI endpoint/key (or skip real calls in local K8s)
-- [ ] `kubectl port-forward` smoke test
+- [ ] Kind cluster
+- [ ] Manifests under `deploy/k8s/`: Deployment + Service + liveness/readiness on `/health`
+- [ ] Secret (or documented stub mode) for OpenAI endpoint/key/deployment
+- [ ] Load image into Kind; `kubectl port-forward` smoke test
+- [ ] Be able to explain probes, restarts, and `kubectl logs` / `describe`
 
-**Done when:** app runs in local K8s; you can explain probes and restarts.
+**Done when:** app runs in Kind; same YAML is what you will take to AKS.
 
 | Reading | Why | Status |
 |---------|-----|--------|
 | [Kubernetes components](https://kubernetes.io/docs/concepts/overview/components/) | Control plane vs nodes | New |
 | [Kubernetes basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/) | Pods, Deployments, Services | New |
 | [Workload resources](https://kubernetes.io/docs/concepts/workloads/) | Rolling updates, crash loops | New |
-| [Liveness / readiness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) | `/health` wiring for AKS later | New |
+| [Liveness / readiness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) | `/health` wiring | New |
 | [ConfigMaps and Secrets](https://kubernetes.io/docs/concepts/configuration/) | Endpoint/key injection | New |
-| [Kind quick start](https://kind.sigs.k8s.io/docs/user/quick-start/) | Cheap local cluster | New |
+| [Kind quick start](https://kind.sigs.k8s.io/docs/user/quick-start/) | Local cluster + loading images | New |
 
 ---
 
 ### Phase 4 — AKS + Terraform
 
-**Learn:** AKS basics, node pools, kubectl context, IaC for cluster.
+**Learn:** managed Kubernetes on Azure via **IaC**; reuse Kind manifests; cost hygiene.
 
-- [ ] Terraform: resource group + AKS (small node SKU; destroy when done)
-- [ ] Connect kubectl; deploy same manifests (or Helm later)
-- [ ] Ingress **or** port-forward/LoadBalancer for demo access
-- [ ] Document create / destroy costs in `docs/runbook.md`
-- [ ] Prefer workload identity / MI for OpenAI over long-lived keys in Secrets (stretch)
+- [ ] Terraform in `infra/`: resource group + small AKS (cheap node SKU; destroy when done)
+- [ ] `terraform apply` → `az aks get-credentials` (or output kubeconfig); apply the **same** `deploy/k8s/` manifests
+- [ ] Image from ACR (or documented pull path); Secret for OpenAI
+- [ ] Ingress **or** LoadBalancer **or** port-forward for demo access
+- [ ] Document create / destroy and cost notes in `docs/runbook.md`
 
-**Done when:** public or documented URL hits chat on AKS; `terraform destroy` is practiced.
+**Done when:** documented URL (or port-forward steps) hits chat on AKS; `terraform destroy` is practiced.
 
 | Reading | Why | Status |
 |---------|-----|--------|
 | [Why IaC / Terraform intro](https://developer.hashicorp.com/terraform/intro) · [azurerm provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs) | Repeatable RG + destroy habit | Known (AKS types are New) |
 | [AKS intro](https://learn.microsoft.com/azure/aks/intro-kubernetes) | Shared responsibility / node pools | New |
 | [AKS with Terraform](https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-terraform) | Lab cluster IaC | Known Terraform; **New** AKS |
-| [Connect with kubectl](https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-cli) | Context, smoke deploys | New |
+| [Deploy AKS with Azure CLI](https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-cli) | kubectl context / credentials | New |
 | [Kubernetes Services](https://kubernetes.io/docs/concepts/services-networking/service/) | LoadBalancer vs Ingress vs port-forward | New |
-| [AKS workload identity](https://learn.microsoft.com/azure/aks/workload-identity-overview) | Pod MI stretch goal | Known MI; **New** on AKS |
-| [OpenAI + Managed Identity](https://learn.microsoft.com/azure/ai-services/openai/how-to/managed-identity) | Keyless pod → OpenAI | New |
+| [ACR + AKS auth](https://learn.microsoft.com/azure/aks/cluster-container-registry-integration) | Pull images cleanly | New |
 | [AKS cost best practices](https://learn.microsoft.com/azure/aks/best-practices-cost) | Why destroy between demos | New |
 
----
-
-### Phase 5 — Observability (core of the portfolio)
-
-**Learn:** RED metrics + AI-specific tokens/cost; Azure Monitor or Prometheus path.
-
-- [ ] Emit metrics: request count, errors, latency histogram, tokens, estimated cost
-- [ ] Export via OpenTelemetry → Azure Monitor **or** Managed Prometheus
-- [ ] One dashboard (Workbook or Grafana): latency, errors, tokens/$  
-- [ ] Three alerts wired (email/Teams/Action Group is enough)
-- [ ] `docs/architecture.md` + short incident-style notes in `runbook.md`
-
-**Done when:** you can show a live dashboard and describe what each alert means.
-
-| Reading | Why | Status |
-|---------|-----|--------|
-| [OpenTelemetry concepts](https://opentelemetry.io/docs/concepts/observability-primer/) | Metrics + logs (+ traces) pillars | New |
-| [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) | Instrument the proxy | New |
-| [Azure Monitor OTel Distro](https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable) | Shortest path into Azure | New |
-| [Managed Prometheus on AKS](https://learn.microsoft.com/azure/azure-monitor/containers/prometheus-metrics-overview) | Prom/Grafana alternative | New |
-| [RED method](https://grafana.com/blog/2022/04/20/the-red-method-how-to-instrument-your-services/) | Rate, Errors, Duration for `/v1/chat` | New |
-| [SRE — Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) | SLIs/SLOs → alert intent | New |
-| [USE method](https://www.brendangregg.com/usemethod.html) | CPU/memory/restarts saturation | New |
-| [GenAI / Foundry metrics](https://learn.microsoft.com/azure/ai-foundry/observability/concepts/ai-foundry-metrics) | Tokens, cost, filter/provider errors | New |
-| [Azure Monitor alerts](https://learn.microsoft.com/azure/azure-monitor/alerts/alerts-overview) | Action Groups + starter SLOs | New |
+Keyless identity is **Phase 6** (do not block Phase 4 on it).
 
 ---
+### Phase 5 — Thin CI
 
-### Phase 6 — CI/CD
-
-**Learn:** gated pipeline to AKS.
+**Learn:** gate on tests; build the image; optional AKS deploy when the cluster exists.
 
 - [ ] GitHub Actions: pytest (mocked OpenAI) on PR/push
-- [ ] Build/push image to ACR
-- [ ] Deploy to AKS only if tests pass
-- [ ] Disable auto-deploy when cluster is destroyed (workflow_dispatch only)
+- [ ] Build (and optionally push) image to ACR
+- [ ] Optional: deploy to AKS via `workflow_dispatch` only (cluster may be destroyed)
 
-**Done when:** merge → tests → image → rollout; failed tests block deploy.
+**Done when:** CI runs tests and builds an image; failed tests block the pipeline.
 
 | Reading | Why | Status |
 |---------|-----|--------|
 | [GitHub Actions — deploying](https://docs.github.com/en/actions/deployment/about-deployments/about-continuous-deployment) | Gated CD vocabulary | Known |
-| [GitHub Actions for AKS](https://learn.microsoft.com/azure/aks/kubernetes-action) | Build → push → deploy | New |
-| [Azure/k8s-deploy](https://github.com/Azure/k8s-deploy) | Manifest rollout from Actions | New |
-| [ACR + AKS auth](https://learn.microsoft.com/azure/aks/cluster-container-registry-integration) | Pull images cleanly | New |
+| [GitHub Actions for AKS](https://learn.microsoft.com/azure/aks/kubernetes-action) | Build → push → deploy pattern | New |
+| [Azure/k8s-deploy](https://github.com/Azure/k8s-deploy) | Optional manifest rollout | New |
 
 ---
 
-### Phase E — Eval chapter (SDET differentiator, keep thin)
+## Advanced phases (after 0–5)
 
-**Learn:** golden prompts, baselines, failing CI on quality drop.
+Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep each phase **thin**.
+
+### Phase 6 — Workload Identity & secrets
+
+**Learn:** keyless pod → Azure OpenAI; tighten secret handling.
+
+**Why:** Long-lived API keys in Secrets are a weak demo story. Workload Identity is what production AKS + Azure AI setups aim for, and it differentiates this project from “I put a key in an env var.” Complements Docker/K8s without overlapping work observability.
+
+- [ ] Enable workload identity on the lab AKS (Terraform or documented steps)
+- [ ] Bind the proxy ServiceAccount to an identity that can call Azure OpenAI
+- [ ] Remove (or stop requiring) the OpenAI API key Secret for the AKS deploy path
+- [ ] Optional: NetworkPolicy denying egress except OpenAI/DNS
+- [ ] Update `docs/runbook.md` with the identity story
+
+**Done when:** chat on AKS works **without** an API key in the pod Secret; you can explain the identity chain in an interview.
+
+| Reading | Why | Status |
+|---------|-----|--------|
+| [AKS workload identity](https://learn.microsoft.com/azure/aks/workload-identity-overview) | Pod → Entra identity | Known MI idea; **New** on AKS |
+| [OpenAI + Managed Identity](https://learn.microsoft.com/azure/ai-services/openai/how-to/managed-identity) | Keyless calls to the model | New |
+| [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) | Optional egress lock-down | New |
+
+---
+
+### Phase 7 — Thin RAG
+
+**Learn:** retrieve-then-generate with a tiny doc set behind the same proxy.
+
+**Why:** Interviewers often ask how grounded answers work. A small RAG path shows AI systems design on top of your K8s proxy — without turning the repo into a search-product or needing dashboards.
+
+- [ ] Ingest a tiny doc set (Azure AI Search **or** embedded vectors — pick one)
+- [ ] `/v1/chat` (or `/v1/chat/rag`) retrieves context, then calls Azure OpenAI
+- [ ] Document limits: corpus size, failure mode when retrieval misses
+- [ ] Tests: mock retrieval + model (no live spend in CI)
+
+**Done when:** a question that needs the docs answers with grounded content; a question outside the docs behaves safely (refuse or say unknown).
+
+| Reading | Why | Status |
+|---------|-----|--------|
+| [RAG solution design](https://learn.microsoft.com/azure/architecture/ai-ml/guide/rag/rag-solution-design-and-evaluation-guide) | Retrieve → generate pattern | New |
+| [Azure AI Search + RAG](https://learn.microsoft.com/azure/search/retrieval-augmented-generation-overview) | Hosted retrieval option | New |
+
+---
+
+### Phase 8 — Thin evals (quality gate)
+
+**Learn:** golden prompts, baseline score, fail CI on quality drop.
+
+**Why:** This is the SDET / AI-quality angle — different from observability. You already gate on unit tests; evals gate on **behavior**. One intentional regression failing CI is enough for the portfolio story.
 
 - [ ] `tests/evals/golden_cases.json` (15–30 cases)
-- [ ] Scorers: contains / not_contains / optional JSON schema
-- [ ] Job in Actions (nightly or on main) that calls **staging** or a mocked policy
-- [ ] Fail pipeline if score < baseline
-- [ ] Document flake policy (retries, quarantine)
+- [ ] Scorers: contains / not_contains (keep simple)
+- [ ] Actions job (nightly or on main) — mocked policy **or** cheap staging; no surprise token spend
+- [ ] Fail pipeline if score < baseline; document flake policy
 
-**Done when:** one intentional bad prompt change fails CI; README explains the gate.
+**Done when:** one intentional bad prompt/change fails CI; README explains the gate.
 
 | Reading | Why | Status |
 |---------|-----|--------|
 | [Eval approach for generative AI](https://learn.microsoft.com/azure/ai-foundry/concepts/evaluation-approach-gen-ai) | Quality as a pipeline signal | New |
-| [OpenAI Evals guide](https://platform.openai.com/docs/guides/evals) | Golden-set / scoring vocabulary | New |
-| [Promptfoo intro](https://www.promptfoo.dev/docs/intro/) | Optional local harness inspiration | New |
+| [OpenAI Evals guide](https://platform.openai.com/docs/guides/evals) | Golden-set vocabulary | New |
 
 ---
 
-### Phase F (optional later) — Light RAG
+### Phase 9 — GitOps
 
-Only after Phases 0–6 feel solid.
+**Learn:** cluster desired state from git (Argo CD or Flux — pick one).
 
-- [ ] Ingest a tiny doc set (AI Search or pgvector)
-- [ ] `/v1/chat` retrieves then answers
-- [ ] Extend evals for groundedness (“must cite” / must not invent)
+**Why:** Phase 5 pushes an image; GitOps answers “how does the cluster stay aligned with the repo?” Strong platform signal next to Terraform/AKS, and still separate from metrics/dashboards.
 
-| Reading | Why | Status |
-|---------|-----|--------|
-| [RAG solution design & evaluation](https://learn.microsoft.com/azure/architecture/ai-ml/guide/rag/rag-solution-design-and-evaluation-guide) | Retrieve-then-generate; groundedness | New |
-| [MLOps maturity (Azure)](https://learn.microsoft.com/azure/architecture/ai-ml/guide/mlops-v2) | Interview framing: inference + ops, not training | New |
+- [ ] Install Argo CD **or** Flux on the lab AKS
+- [ ] Point it at `deploy/k8s/` (or a render of it); sync the proxy
+- [ ] Demo: change a manifest in git → cluster updates (or show sync UI + `kubectl`)
+- [ ] Document: GitOps vs `workflow_dispatch` kubectl apply
 
----
-
-### Phase G (optional later) — Go companion
-
-Only after the Python proxy path (0–6) is demo-ready. Keep this **thin** — do not replace the FastAPI service as the main portfolio piece.
-
-**Learn:** Go basics in a cloud-native shape (HTTP service or CLI) next to the same AKS/OpenAI story.
-
-Pick **one** track:
-
-**Track A — Tiny Go proxy** (same contract as Python)
-
-- [ ] `go/` module: `GET /health`, `POST /v1/chat` calling Azure OpenAI
-- [ ] Dockerfile + deploy alongside (or instead of) Python for a short comparison demo
-- [ ] Reuse the same env/config knobs (endpoint, deployment, key or MI later)
-- [ ] Note latency/token metrics parity (or deliberately thinner than Python)
-
-**Track B — Go CLI client** (lighter)
-
-- [ ] `go/` CLI: send a prompt to the running FastAPI service on AKS
-- [ ] Flags for URL, API key, prompt; print reply + latency
-- [ ] Optional: smoke job in CI that builds the CLI (no live OpenAI spend)
-
-**Done when:** you can show a small Go artifact in-repo and explain why Go is common in the Kubernetes ecosystem — without diluting the Python + observability demo.
+**Done when:** a git change is the source of truth for the proxy Deployment on AKS (lab cluster).
 
 | Reading | Why | Status |
 |---------|-----|--------|
-| [Go tour](https://go.dev/tour/) | Language basics | New |
-| [Creating a Go module](https://go.dev/doc/tutorial/create-module) | Module layout for `go/` | New |
-| [net/http](https://pkg.go.dev/net/http) · [Writing Web Applications](https://go.dev/doc/articles/wiki/) | Track A: minimal HTTP service | New |
-| [Azure OpenAI REST](https://learn.microsoft.com/azure/ai-services/openai/reference) | Same chat API from Go (HTTP or SDK) | New |
-| [Command-line flags](https://pkg.go.dev/flag) | Track B: CLI knobs | New |
+| [GitOps principles](https://opengitops.dev/) | Desired state in git | New |
+| [Flux on AKS](https://learn.microsoft.com/azure/azure-arc/kubernetes/tutorial-use-gitops-flux2) | One Azure-friendly path | New |
+| [Argo CD getting started](https://argo-cd.readthedocs.io/en/stable/getting_started/) | Alternate popular controller | New |
 
 ---
 
@@ -361,27 +325,28 @@ Pick **one** track:
 
 | Phase | Skills to claim |
 |-------|-----------------|
-| 0–1 | FastAPI, Azure OpenAI, Python packaging, mocked tests |
-| 2–3 | Docker, Kubernetes primitives, probes |
+| 0–1 | FastAPI, Azure OpenAI, mocked tests |
+| 2 | Docker, containerized Python API |
+| 3 | Kubernetes primitives, probes, Secrets (Kind) |
 | 4 | AKS, Terraform, cloud cost hygiene |
-| 5 | Observability, SLOs, token/cost metrics (MLOps-relevant) |
-| 6 | CI/CD to Kubernetes |
-| E | AI quality / eval gating (SDET → AI quality story) |
-| G | Go HTTP service or CLI in a K8s-adjacent workflow (optional) |
+| 5 | CI for containerized apps |
+| 6 | AKS Workload Identity, keyless AI auth |
+| 7 | Thin RAG on a K8s-hosted proxy |
+| 8 | AI eval / quality gating in CI |
+| 9 | GitOps (Argo CD or Flux) |
 
 ---
 
-## Suggested 8–12 week pace
+## Suggested pace
 
 | Weeks | Focus |
 |-------|--------|
-| 1 | Phase 0–1 |
-| 2 | Phase 2–3 |
-| 3–4 | Phase 4 (AKS + Terraform) |
-| 5–6 | Phase 5 (dashboards + alerts) |
-| 7 | Phase 6 (CI/CD) |
-| 8 | Phase E + polish README / demo script |
-| Later | Optional F (RAG) and/or G (Go companion) |
+| 1 | Phase 0–1 (stub → Azure OpenAI) |
+| 2 | Phase 2 (Docker) |
+| 3–4 | Phase 3 (Kind — main K8s learning) |
+| 5–6 | Phase 4 (Terraform + AKS) |
+| 7 | Phase 5 (thin CI) + polish README / demo script |
+| Later | Advanced 6 → 7 → 8 → 9 (one at a time) |
 
 Destroy AKS when not demoing — node pools dominate cost.
 
@@ -389,24 +354,25 @@ Destroy AKS when not demoing — node pools dominate cost.
 
 ## Demo script (for interviews)
 
-1. Architecture diagram (30s)  
-2. `curl /health` + `curl /v1/chat` on AKS  
-3. Dashboard: spike latency or tokens with a quick load  
-4. Show an alert rule definition  
-5. Show CI: tests + (optional) eval gate failing on a bad commit  
-6. `terraform destroy` / cost note — shows maturity  
+1. Architecture: client → container on K8s → Azure OpenAI (30s)  
+2. Show Dockerfile + `deploy/k8s/` + Terraform `infra/`  
+3. Kind or AKS: `curl /health` + `curl /v1/chat`  
+4. `kubectl get pods` / logs  
+5. CI: pytest + image build  
+6. `terraform destroy` cost note  
+7. Optional: Workload Identity, RAG answer, eval gate, or GitOps sync  
 
 ---
 
 ## Prerequisites
 
-- Azure subscription you can create AKS + Azure OpenAI in  
+- Azure subscription (Azure OpenAI + AKS)  
 - Docker Desktop (or equivalent)  
-- kubectl, Terraform, Azure CLI (`az login`)  
+- kubectl, Kind, Terraform, Azure CLI (`az login`)  
 - Python 3.13+  
 - GitHub repo for Actions  
 
-**Readings** live under each phase in [Phased plan](#phased-plan) (**Known** = refresher; **New** = focus). Skim one **New** overview per phase, then build.
+**Readings** live under each phase (**Known** = refresher; **New** = focus). Skim one **New** overview per phase, then build.
 
 ---
 
@@ -414,13 +380,13 @@ Destroy AKS when not demoing — node pools dominate cost.
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 — Skeleton | Not started | |
+| 0 — Skeleton | Done | Local stub `/health` + `/v1/chat`; pytest green |
 | 1 — Azure OpenAI | Not started | |
 | 2 — Docker | Not started | |
-| 3 — Local K8s | Not started | |
-| 4 — AKS + Terraform | Not started | |
-| 5 — Observability | Not started | |
-| 6 — CI/CD | Not started | |
-| E — Evals | Not started | |
-| F — RAG (optional) | Deferred | |
-| G — Go companion (optional) | Deferred | |
+| 3 — Kind (local K8s) | Not started | Main K8s learning |
+| 4 — AKS + Terraform | Not started | Same manifests as Kind |
+| 5 — Thin CI | Not started | |
+| 6 — Workload Identity | Deferred | Advanced |
+| 7 — Thin RAG | Deferred | Advanced |
+| 8 — Thin evals | Deferred | Advanced |
+| 9 — GitOps | Deferred | Advanced |

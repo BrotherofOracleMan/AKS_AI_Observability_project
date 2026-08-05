@@ -1,6 +1,6 @@
-# AKS AI Observability
+# AI on Kubernetes
 
-Learning / portfolio project: run a small **LLM proxy API** on **Azure Kubernetes Service (AKS)**, with production-style **metrics, logs, and alerts** — plus a lightweight **eval gate in CI** (SDET angle).
+Learning / portfolio project: **Dockerize** a FastAPI **Azure OpenAI proxy**, run it on **Kubernetes** (Kind first), then deploy the same manifests to **AKS** with **Terraform**.
 
 Companion learning path: [docs/project-roadmap.md](docs/project-roadmap.md).
 
@@ -8,28 +8,48 @@ Companion learning path: [docs/project-roadmap.md](docs/project-roadmap.md).
 
 | Goal | How this helps |
 |------|----------------|
-| Career depth (2026) | Operate AI on cloud + Kubernetes (MLOps / platform adjacent) |
-| Azure | AKS, Azure OpenAI, Monitor / Managed Prometheus |
-| SDET crossover | pytest + golden-prompt evals that can fail CI |
-| Reuse | FastAPI, GitHub Actions, Terraform habits you already know |
+| Docker | Ship a real API image, not only `uvicorn` on a laptop |
+| Kubernetes | Deployments, Services, probes, Secrets — Kind then AKS |
+| AI | Thin `/v1/chat` proxy in front of **Azure OpenAI** |
+| IaC | **Terraform** for AKS create/destroy |
 
 ## Stack (target)
 
-- **Python 3.13** + **FastAPI** — thin `/v1/chat` proxy in front of Azure OpenAI
-- **Docker** → **AKS**
-- **Terraform** — resource group, AKS, related Azure bits
-- **OpenTelemetry** and/or **Azure Monitor** — latency, errors, tokens, cost
-- **GitHub Actions** — test → build image → deploy (gated)
-- **Small eval suite** — golden prompts; optional LLM-as-judge later
+- **Python 3.13** + **FastAPI** — `/health` + `/v1/chat` proxy
+- **Docker** → **Kind** → **AKS** (same manifests)
+- **Terraform** — RG + AKS in `infra/`
+- **Azure OpenAI** — hosted chat model
+- **GitHub Actions** — pytest (mocked OpenAI) → build image (optional deploy)
 
-## What you monitor (summary)
+**Advanced (after core):** Workload Identity, thin RAG, thin evals, GitOps.
 
-- API: rate, errors, p95 latency  
-- Model: tokens, estimated cost, 429s / content filters  
-- Cluster: pod health, CPU/memory, restarts  
+**Out of scope:** heavy observability (covered at work), GPU pools, service mesh, multi-cluster, fine-tuning.
 
-Full list and phases: [docs/project-roadmap.md](docs/project-roadmap.md).
+## Local setup (Phase 0)
+
+```bash
+uv sync --group dev
+cd src && uv run uvicorn main:app --reload
+```
+
+- Health: http://localhost:8000/health  
+- Docs: http://localhost:8000/docs  
+- Chat: `POST /v1/chat` with `{"messages":[{"role":"user","content":"hello"}]}`
+
+```bash
+uv run pytest -v
+```
+
+Everything lives in `src/main.py` for now (stub echo, no Azure). Split files when Phase 1 needs them.
+
+## Path (summary)
+
+**Core:** stub → Azure OpenAI → Docker → Kind → Terraform/AKS → thin CI  
+
+**Advanced:** Workload Identity → thin RAG → thin evals → GitOps  
+
+Full checklist and readings: [docs/project-roadmap.md](docs/project-roadmap.md).
 
 ## Status
 
-Phases are **not started**. Use the roadmap checklist as you build.
+Phase 0 skeleton is in place. Next: Phase 1 (Azure OpenAI).
