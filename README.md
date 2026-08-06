@@ -4,6 +4,18 @@ Learning / portfolio project: **Dockerize** a FastAPI **Azure OpenAI proxy**, ru
 
 Companion learning path: [docs/project-roadmap.md](docs/project-roadmap.md).
 
+## What this project is
+
+A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure OpenAI**. Clients call *your* API; you forward the prompt to a hosted model and return the reply.
+
+**The point:** prove you can run **AI inference as a real workload on Kubernetes** — container, manifests, cluster, CI — not as a one-off script or Jupyter notebook experiment.
+
+**Core path:** stub API → Azure OpenAI → Docker → Kind → Terraform/AKS → thin CI  
+
+**Advanced (later):** Workload Identity → thin RAG → thin evals → GitOps  
+
+**Out of scope:** heavy observability (covered at work), GPU pools, service mesh, multi-cluster, fine-tuning.
+
 ## Why this project
 
 | Goal | How this helps |
@@ -12,6 +24,7 @@ Companion learning path: [docs/project-roadmap.md](docs/project-roadmap.md).
 | Kubernetes | Deployments, Services, probes, Secrets — Kind then AKS |
 | AI | Thin `/v1/chat` proxy in front of **Azure OpenAI** |
 | IaC | **Terraform** for AKS create/destroy |
+| Advanced | Workload Identity, thin RAG, thin evals, GitOps |
 
 ## Stack (target)
 
@@ -21,9 +34,7 @@ Companion learning path: [docs/project-roadmap.md](docs/project-roadmap.md).
 - **Azure OpenAI** — hosted chat model
 - **GitHub Actions** — pytest (mocked OpenAI) → build image (optional deploy)
 
-**Advanced (after core):** Workload Identity, thin RAG, thin evals, GitOps.
-
-**Out of scope:** heavy observability (covered at work), GPU pools, service mesh, multi-cluster, fine-tuning.
+**Advanced (after core):** Workload Identity → thin RAG → thin evals → GitOps.
 
 ## Local setup (Phase 0)
 
@@ -44,11 +55,7 @@ Everything lives in `src/main.py` for now (stub echo, no Azure). Split files whe
 
 ## Path (summary)
 
-**Core:** stub → Azure OpenAI → Docker → Kind → Terraform/AKS → thin CI  
-
-**Advanced:** Workload Identity → thin RAG → thin evals → GitOps  
-
-Full checklist and readings: [docs/project-roadmap.md](docs/project-roadmap.md).
+Same as [What this project is](#what-this-project-is). Details and checklists: [docs/project-roadmap.md](docs/project-roadmap.md).
 
 ## Status
 

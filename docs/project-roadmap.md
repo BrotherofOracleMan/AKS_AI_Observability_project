@@ -1,21 +1,31 @@
 # Project Roadmap: AI on Kubernetes
 
-Learning-focused guide: containerize a FastAPI **Azure OpenAI proxy**, run it on **Kubernetes** (Kind first), then deploy the **same manifests** to **AKS**.
+Learning-focused guide for the portfolio project described below.
 
-Repo folder may still be named `aks-ai-observability`; the hero skills are **Docker + Kubernetes + AI**. Heavy observability is out of scope here (covered at work).
+Hero skills: **Docker + Kubernetes + AI**. Heavy observability is **out of scope** (covered at work) — keep only thin logs + `kubectl`.
 
 ---
 
-## North star
+## What this project is
+
+A small FastAPI **LLM proxy** (`/health`, `/v1/chat`) that sits between clients and **Azure OpenAI**:
 
 ```text
 Client  -->  FastAPI (container on K8s)  -->  Azure OpenAI
                     ↑
          Docker image + K8s manifests
-         (Kind first, then AKS)
+         (Kind first → Terraform AKS)
 ```
 
-**Interview one-liner:** “I containerized an LLM proxy, ran it on Kubernetes locally, then on AKS in front of Azure OpenAI — with keyless identity, and thin RAG/evals/GitOps on top.”
+Clients call *your* API; you forward the prompt to a hosted model and return the reply. That middle layer is where you add real service habits (config, logs, identity, tests, deploy).
+
+**The point:** prove you can run **AI inference as a real workload on Kubernetes** — not as a one-off script or **Jupyter notebook** experiment (interactive cells you run by hand, with no image, cluster, or CI).
+
+**Interview one-liner:** “I containerized an LLM proxy, ran it on Kubernetes locally, then on AKS with Terraform — keyless identity, plus thin RAG, evals, and GitOps.”
+
+**Core path:** stub API → Azure OpenAI → Docker → Kind → Terraform/AKS → thin CI  
+
+**Advanced (later):** Workload Identity → thin RAG → thin evals → GitOps  
 
 ---
 
@@ -23,11 +33,11 @@ Client  -->  FastAPI (container on K8s)  -->  Azure OpenAI
 
 ### Goals (core — Phases 0–5)
 
-- Ship a real **API proxy** in front of Azure OpenAI (not a notebook)
+- Ship a real **API proxy** in front of Azure OpenAI (not a one-off script or Jupyter notebook)
 - **Dockerize** the app and run it with env-injected config
 - Learn **Kubernetes primitives** on Kind (Deployment, Service, probes, Secret)
 - Provision **AKS with Terraform** and deploy the **same** manifests; destroy when idle
-- Keep **thin** ops only: structured logs + basic token/request logging; `kubectl` for pod health
+- **Thin ops only:** structured logs + basic token/request logging; `kubectl` for pod health
 - Thin CI: pytest (mocked OpenAI) → build image (optional AKS deploy)
 
 ### Goals (advanced — after core)
@@ -55,21 +65,20 @@ Client  -->  FastAPI (container on K8s)  -->  Azure OpenAI
 └─────────────────┘     │  logs + basic usage      │     │   RAG context)  │
                         └──────────────────────────┘     └─────────────────┘
 
-Path:  code → Docker image → Kind (learn) → Terraform AKS (demo)
-CI:    pytest (mocked OpenAI) → build/push image → optional deploy / GitOps
-
-Advanced (later): Workload Identity | thin RAG | thin evals | GitOps
+Core:   code → Docker → Kind → Terraform AKS
+CI:     pytest (mocked OpenAI) → build/push image → optional deploy
+Later:  Workload Identity | thin RAG | thin evals | GitOps
 ```
 
 ### Suggested repo layout (create as you go)
 
 ```
-aks-ai-observability/
+ai-on-kubernetes/
   README.md
   docs/
     project-roadmap.md      # this file
     architecture.md         # fill in after Kind/AKS
-    runbook.md              # create/destroy AKS + how to debug pods
+    runbook.md              # create/destroy AKS + debug pods + identity
   src/
     main.py                 # start here (health + stub chat); split later
   tests/
@@ -84,13 +93,15 @@ aks-ai-observability/
 ```
 
 Later: `config.py`, `openai_client.py` when Phase 1 needs them.
+
 ---
-## Thin ops (not the centerpiece)
 
-Enough to debug and talk about cost — not a full observability product.
+## Thin ops (intentionally minimal)
 
-| Signal | How you see it (v1) |
-|--------|---------------------|
+Not a portfolio observability project — depth lives at work. Here you only need enough to debug and talk cost:
+
+| Signal | How you see it |
+|--------|----------------|
 | Request / error / latency | Structured logs from the proxy |
 | Tokens per call | Log `usage` from Azure OpenAI responses |
 | Pod health / restarts | `kubectl get pods`, describe, logs |
@@ -216,6 +227,7 @@ Mark items `[x]` as you finish. Stay on one phase until the “done when” bar 
 Keyless identity is **Phase 6** (do not block Phase 4 on it).
 
 ---
+
 ### Phase 5 — Thin CI
 
 **Learn:** gate on tests; build the image; optional AKS deploy when the cluster exists.
