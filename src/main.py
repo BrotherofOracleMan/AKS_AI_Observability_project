@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
-
+from openai_client import get_response
 app = FastAPI(title="AKS AI Observability")
 
 
