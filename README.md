@@ -36,22 +36,47 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 
 **Advanced (after core):** Workload Identity → thin RAG → thin evals → GitOps.
 
-## Local setup (Phase 0)
+## Local setup
 
 ```bash
 uv sync --group dev
-cd src && uv run uvicorn main:app --reload
+cp .env.example .env   # fill in Azure OpenAI values
+uv run python -m uvicorn main:app --reload --app-dir src
 ```
 
 - Health: http://localhost:8000/health  
 - Docs: http://localhost:8000/docs  
-- Chat: `POST /v1/chat` with `{"messages":[{"role":"user","content":"hello"}]}`
+- Chat: `POST /v1/chat`
+
+```bash
+curl -s http://localhost:8000/v1/chat \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{"messages":[{"role":"user","content":"hello"}]}'
+```
+
+Response shape (approx):
+
+```json
+{
+  "provider_message_id": "chatcmpl-...",
+  "completion": {
+    "text": "...",
+    "model": "gpt-4.1-mini",
+    "prompt_tokens": 19,
+    "completion_tokens": 50,
+    "total_tokens": 69
+  }
+}
+```
 
 ```bash
 uv run pytest -v
 ```
 
-Everything lives in `src/main.py` for now (stub echo, no Azure). Split files when Phase 1 needs them.
+Tests mock `main.chat` so CI does not call Azure / spend tokens.
+
+Layout: `src/main.py`, `config.py`, `openai_client.py`, `models.py`. Never commit `.env`.
 
 ## Path (summary)
 
@@ -59,4 +84,5 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phase 0 skeleton is in place. Next: Phase 1 (Azure OpenAI).
+Phases **0–1 done** (Foundry + `gpt-4.1-mini`, live `/v1/chat`, thin structured logs, mocked pytest).  
+**Next:** Phase 2 — Dockerize the API (`Dockerfile`, `docker run` with env vars).

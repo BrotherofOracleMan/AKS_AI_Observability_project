@@ -80,7 +80,10 @@ ai-on-kubernetes/
     architecture.md         # fill in after Kind/AKS
     runbook.md              # create/destroy AKS + debug pods + identity
   src/
-    main.py                 # start here (health + stub chat); split later
+    main.py                 # FastAPI /health + /v1/chat
+    config.py               # pydantic-settings from .env
+    openai_client.py        # AzureOpenAI chat helper
+    models.py               # ChatRequest / ChatMessage
   tests/
     test_app.py
     evals/                  # optional Phase 8
@@ -92,7 +95,6 @@ ai-on-kubernetes/
   pyproject.toml
 ```
 
-Later: `config.py`, `openai_client.py` when Phase 1 needs them.
 
 ---
 
@@ -141,23 +143,24 @@ Mark items `[x]` as you finish. Stay on one phase until the “done when” bar 
 
 **Learn:** Azure OpenAI deployments, keys, token usage in responses.
 
-- [ ] Create Azure OpenAI resource + chat deployment (cheapest suitable model)
-- [ ] Wire real client (split `openai_client.py` / `config.py` when it helps)
-- [ ] Return model text + record `usage` tokens on each call
-- [ ] Structured logging: request id, latency_ms, tokens, status
-- [ ] Unit tests with **mocked** OpenAI (no spend in CI)
+- [x] Create Azure OpenAI / Foundry resource + chat deployment (`gpt-4.1-mini`)
+- [x] Wire real client (`openai_client.py` / `config.py` / `models.py`)
+- [x] Return model text + record `usage` tokens on each call
+- [x] Structured logging: request id, latency_ms, tokens, status
+- [x] Unit tests with **mocked** OpenAI (`mocker.patch("main.chat")` — no spend in CI)
 
-**Done when:** local curl to `/v1/chat` hits Azure OpenAI; tests mock the provider.
+**Done when:** local curl to `/v1/chat` hits Azure OpenAI; tests mock the provider. ✅
 
 **Cost note:** set low quotas; never commit keys; destroy lab resources when idle.
 
 | Reading | Why | Status |
 |---------|-----|--------|
-| [Azure OpenAI concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/models) | Deployments vs models; tokens → cost | New |
-| [Azure OpenAI quickstart (Python)](https://learn.microsoft.com/azure/ai-services/openai/chatgpt-quickstart) | First real chat call | New |
-| [Completions / SDK usage](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/completions) | Tokens in responses | New |
-| [Quotas & limits](https://learn.microsoft.com/azure/ai-services/openai/quotas-limits) | 429s, lab quotas | New |
-| [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/) | Token/$ intuition | New |
+| [Azure OpenAI concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/models) | Deployments vs models; tokens → cost | Known |
+| [Azure OpenAI quickstart (Python)](https://learn.microsoft.com/azure/ai-services/openai/chatgpt-quickstart) | First real chat call | Known |
+| [Completions / SDK usage](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/completions) | Tokens in responses | Known |
+| [Quotas & limits](https://learn.microsoft.com/azure/ai-services/openai/quotas-limits) | 429s, lab quotas | Known |
+| [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/) | Token/$ intuition | Known |
+
 
 ---
 
@@ -392,9 +395,9 @@ Destroy AKS when not demoing — node pools dominate cost.
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 — Skeleton | Done | Local stub `/health` + `/v1/chat`; pytest green |
-| 1 — Azure OpenAI | Not started | |
-| 2 — Docker | Not started | |
+| 0 — Skeleton | Done | Local `/health` + `/v1/chat`; pytest green |
+| 1 — Azure OpenAI | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
+| 2 — Docker | Not started | **Next** |
 | 3 — Kind (local K8s) | Not started | Main K8s learning |
 | 4 — AKS + Terraform | Not started | Same manifests as Kind |
 | 5 — Thin CI | Not started | |
