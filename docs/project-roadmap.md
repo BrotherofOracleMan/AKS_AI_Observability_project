@@ -92,6 +92,8 @@ ai-on-kubernetes/
   infra/                    # Terraform (AKS, RG, …)
   .github/workflows/
   Dockerfile
+  .dockerignore
+  requirements.txt        # exported for the image build
   pyproject.toml
 ```
 
@@ -166,21 +168,72 @@ Mark items `[x]` as you finish. Stay on one phase until the “done when” bar 
 
 ### Phase 2 — Docker
 
-**Learn:** ship the API as an image; config via env (12-factor).
+**Build (compact):** ship one image of the FastAPI proxy; inject Azure config at **runtime**. Same image → Kind → AKS later.
 
-- [ ] `Dockerfile` runs uvicorn (slim image; non-root if practical)
-- [ ] `docker run` with env vars for OpenAI endpoint/key/deployment
-- [ ] Optional: push to **Azure Container Registry (ACR)**
+**Learn (spend time here):** be able to explain a **container** to a recruiter without hand-waving. Kubernetes schedules containers — if you can’t explain the unit, the rest of the portfolio story wobbles.
 
-**Done when:** `docker run` serves `/health` and chat with env-injected secrets.
+#### Recruiter-ready mental model
+
+Practice saying this out loud until it’s natural:
+
+> “A **container** packages my app with its runtime dependencies so it runs the same way on my laptop, in CI, and on Kubernetes. It’s lighter than a VM: it shares the host OS kernel instead of booting a full guest OS. An **image** is the immutable blueprint (`docker build`); a **container** is a running instance of that image (`docker run`). In this project I put the LLM proxy in an image, pass Azure OpenAI secrets as env vars at runtime, and later Kubernetes runs that same image as pods.”
+
+Know these distinctions cold:
+
+| Term | Plain English |
+|------|----------------|
+| **Image** | Snapshot / template (filesystem + metadata + start command) |
+| **Container** | Running process(es) created from an image |
+| **Dockerfile** | Recipe to build the image |
+| **Registry** (e.g. ACR) | Place to store/pull images (needed for AKS) |
+| **VM** | Full machine + guest OS — heavier isolation, slower to start |
+| **Container** | App + libs, shares host kernel — fast, portable |
+
+**Why not just `uv run` on the server?**  
+Deployments expect a standard artifact. K8s doesn’t SSH in and activate your venv — it pulls an image and starts a container.
+
+**Optional depth (if you want extra confidence):** namespaces/cgroups at a high level (“isolation + resource limits”), image **layers** / cache, `-p 8000:8000` = publish container port to host.
+
+#### Todos (keep short)
+
+- [x] `Dockerfile` + `.dockerignore` + `requirements.txt` (no `.env` / `.venv` in the image)
+- [x] Image runs uvicorn on `0.0.0.0:8000` (`CMD` with `--app-dir src`)
+- [x] Smoke: `docker build` + `docker run --env-file .env -p …`; `curl` `/health` + `POST /v1/chat` (verified on host port 8001)
+- [ ] Optional later: push to ACR (needed before AKS, not blocking Kind with `kind load`)
+
+**Done when:** containerized proxy works locally with env-injected Azure config. ✅  
+
+(Recruiter “explain a container” polish is deferred to **Interview polish** at the end — keep shipping Kind/AKS first.)
+
+**Interview one-liner (when you need it later):** “I containerized the LLM proxy — same image from local Docker to Kind to AKS — with Azure credentials injected at runtime, not baked into the image.”
+
+
+
+#### Commands
+
+```bash
+docker build -t ai-on-kubernetes:local .
+docker run --rm -p 8000:8000 --env-file .env ai-on-kubernetes:local
+```
+
+#### Pitfalls
+
+- Don’t copy `.env` or host `.venv` into the image  
+- Bind uvicorn to `0.0.0.0` (not only localhost) so `-p` works  
+- Prefer tagged images (`:local` / git sha) over endless `:latest`
 
 | Reading | Why | Status |
 |---------|-----|--------|
-| [What is a container?](https://learn.microsoft.com/dotnet/architecture/microservices/container-docker-introduction/) | Containers vs VMs | Known |
-| [Docker best practices](https://docs.docker.com/build/building/best-practices/) | Slim image, layers, non-root | Known basics; **New** for shipping the API |
-| [Dockerfile reference](https://docs.docker.com/reference/dockerfile/) | `FROM`, `COPY`, `CMD` | New |
+| [What is a container?](https://learn.microsoft.com/dotnet/architecture/microservices/container-docker-introduction/) | Containers vs VMs (revisit in Interview polish) | Skim now / revisit later |
+| [Docker overview](https://docs.docker.com/get-started/docker-overview/) | Image vs container vs Dockerfile | Known |
+| [Dockerfile best practices](https://docs.docker.com/build/building/best-practices/) | Slim image, `.dockerignore`, layers | Known |
+| [docker run](https://docs.docker.com/reference/cli/docker/container/run/) | `-p`, `--env-file` | Known |
+| [ACR intro](https://learn.microsoft.com/azure/container-registry/container-registry-intro) | Registry for AKS later | Skim |
+
 
 ---
+
+
 
 ### Phase 3 — Kubernetes locally (Kind)
 
@@ -361,6 +414,7 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 | 3–4 | Phase 3 (Kind — main K8s learning) |
 | 5–6 | Phase 4 (Terraform + AKS) |
 | 7 | Phase 5 (thin CI) + polish README / demo script |
+| 8 | **Interview polish** — container pitch, demo script, resume bullets |
 | Later | Advanced 6 → 7 → 8 → 9 (one at a time) |
 
 Destroy AKS when not demoing — node pools dominate cost.
@@ -376,6 +430,21 @@ Destroy AKS when not demoing — node pools dominate cost.
 5. CI: pytest + image build  
 6. `terraform destroy` cost note  
 7. Optional: Workload Identity, RAG answer, eval gate, or GitOps sync  
+
+---
+
+## Interview polish (end of core path)
+
+Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain containers better once you’ve run the same image on Kubernetes.
+
+- [ ] Recruiter pitch: image vs container vs VM in under a minute (use the Phase 2 mental model above)
+- [ ] Walk the demo script once end-to-end without notes
+- [ ] Refresh README status + 3–5 resume bullets from what you actually shipped
+- [ ] Optional: 1-page `docs/architecture.md` sketch
+
+**Pitch to practice then:**
+
+> “A container packages my app and its dependencies so it runs the same way on my laptop, in CI, and on Kubernetes. It’s lighter than a VM because it shares the host OS kernel. An image is the blueprint; a container is a running instance. I put an LLM proxy in an image, inject Azure secrets at runtime, and run that same image on Kind and AKS.”
 
 ---
 
@@ -397,11 +466,12 @@ Destroy AKS when not demoing — node pools dominate cost.
 |-------|--------|-------|
 | 0 — Skeleton | Done | Local `/health` + `/v1/chat`; pytest green |
 | 1 — Azure OpenAI | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
-| 2 — Docker | Not started | **Next** |
-| 3 — Kind (local K8s) | Not started | Main K8s learning |
+| 2 — Docker | Done | Image smoke-tested; ACR optional before AKS; pitch deferred to Interview polish |
+| 3 — Kind (local K8s) | Not started | **Next** — main K8s learning |
 | 4 — AKS + Terraform | Not started | Same manifests as Kind |
 | 5 — Thin CI | Not started | |
 | 6 — Workload Identity | Deferred | Advanced |
 | 7 — Thin RAG | Deferred | Advanced |
 | 8 — Thin evals | Deferred | Advanced |
 | 9 — GitOps | Deferred | Advanced |
+| Interview polish | Deferred | After core path — container pitch + demo |

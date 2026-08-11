@@ -1,0 +1,54 @@
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Git / IDE
+.git/
+.gitignore
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Tests / coverage (not needed at runtime)
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.cache/
+
+# Docs / misc (not needed in the image)
+docs/
+README.md
+*.md
+.DS_Store
+Thumbs.db
+
+# Local tooling
+uv.lock

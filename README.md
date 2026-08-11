@@ -84,5 +84,5 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–1 done** (Foundry + `gpt-4.1-mini`, live `/v1/chat`, thin structured logs, mocked pytest).  
-**Next:** Phase 2 — Dockerize the API (`Dockerfile`, `docker run` with env vars).
+Phases **0–2 done** (API + Azure OpenAI + Docker image smoke-tested).  
+**Next:** Phase 3 — Kind (local Kubernetes). Recruiter container pitch is parked under **Interview polish** at the end of the roadmap.
