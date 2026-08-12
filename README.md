@@ -84,5 +84,5 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–2 done** (API + Azure OpenAI + Docker image smoke-tested).  
+Phases **0–2 done** (API + Azure OpenAI + Docker image smoke-tested and pushed to ACR as `…/ai-on-kubernetes:local`).  
 **Next:** Phase 3 — Kind (local Kubernetes). Recruiter container pitch is parked under **Interview polish** at the end of the roadmap.

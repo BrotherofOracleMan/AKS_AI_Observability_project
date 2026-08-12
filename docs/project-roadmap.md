@@ -199,7 +199,7 @@ Deployments expect a standard artifact. K8s doesn’t SSH in and activate your v
 - [x] `Dockerfile` + `.dockerignore` + `requirements.txt` (no `.env` / `.venv` in the image)
 - [x] Image runs uvicorn on `0.0.0.0:8000` (`CMD` with `--app-dir src`)
 - [x] Smoke: `docker build` + `docker run --env-file .env -p …`; `curl` `/health` + `POST /v1/chat` (verified on host port 8001)
-- [ ] Optional later: push to ACR (needed before AKS, not blocking Kind with `kind load`)
+- [x] Push to ACR: `aiaksresourceregistry-….azurecr.io/ai-on-kubernetes:local`
 
 **Done when:** containerized proxy works locally with env-injected Azure config. ✅  
 
@@ -207,20 +207,27 @@ Deployments expect a standard artifact. K8s doesn’t SSH in and activate your v
 
 **Interview one-liner (when you need it later):** “I containerized the LLM proxy — same image from local Docker to Kind to AKS — with Azure credentials injected at runtime, not baked into the image.”
 
-
+**ACR note (lab):** Entra Guest + `az acr login` failed data-plane auth; push worked with **ACR admin** `docker login`. Portal “list repositories” may still fail under Entra — verify with admin CLI. Prefer admin/`--password-stdin`; rotate keys if pasted in shell history. Kind can still use `kind load docker-image` without ACR. **Fix Entra properly in Phase 4** (don’t block Kind).
 
 #### Commands
 
 ```bash
 docker build -t ai-on-kubernetes:local .
 docker run --rm -p 8000:8000 --env-file .env ai-on-kubernetes:local
+
+# ACR (after admin docker login)
+docker tag ai-on-kubernetes:local \
+  aiaksresourceregistry-e4a9a2d8eqd7dhck.azurecr.io/ai-on-kubernetes:local
+docker push \
+  aiaksresourceregistry-e4a9a2d8eqd7dhck.azurecr.io/ai-on-kubernetes:local
 ```
 
 #### Pitfalls
 
 - Don’t copy `.env` or host `.venv` into the image  
 - Bind uvicorn to `0.0.0.0` (not only localhost) so `-p` works  
-- Prefer tagged images (`:local` / git sha) over endless `:latest`
+- Prefer tagged images (`:local` / git sha) over endless `:latest`  
+- Subscription **Owner** ≠ ACR push — need **AcrPush** and/or admin login for data plane  
 
 | Reading | Why | Status |
 |---------|-----|--------|
@@ -228,7 +235,7 @@ docker run --rm -p 8000:8000 --env-file .env ai-on-kubernetes:local
 | [Docker overview](https://docs.docker.com/get-started/docker-overview/) | Image vs container vs Dockerfile | Known |
 | [Dockerfile best practices](https://docs.docker.com/build/building/best-practices/) | Slim image, `.dockerignore`, layers | Known |
 | [docker run](https://docs.docker.com/reference/cli/docker/container/run/) | `-p`, `--env-file` | Known |
-| [ACR intro](https://learn.microsoft.com/azure/container-registry/container-registry-intro) | Registry for AKS later | Skim |
+| [ACR intro](https://learn.microsoft.com/azure/container-registry/container-registry-intro) | Private registry; tag/push/pull | Known |
 
 
 ---
@@ -265,6 +272,7 @@ docker run --rm -p 8000:8000 --env-file .env ai-on-kubernetes:local
 - [ ] Terraform in `infra/`: resource group + small AKS (cheap node SKU; destroy when done)
 - [ ] `terraform apply` → `az aks get-credentials` (or output kubeconfig); apply the **same** `deploy/k8s/` manifests
 - [ ] Image from ACR (or documented pull path); Secret for OpenAI
+- [ ] **Fix ACR Entra auth** (so admin password isn’t required): e.g. Member user or working `az acr login` + **AcrPush**; confirm Portal can list repos; then disable ACR admin user if you turned it on for the lab
 - [ ] Ingress **or** LoadBalancer **or** port-forward for demo access
 - [ ] Document create / destroy and cost notes in `docs/runbook.md`
 
@@ -466,9 +474,9 @@ Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain con
 |-------|--------|-------|
 | 0 — Skeleton | Done | Local `/health` + `/v1/chat`; pytest green |
 | 1 — Azure OpenAI | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
-| 2 — Docker | Done | Image smoke-tested; ACR optional before AKS; pitch deferred to Interview polish |
+| 2 — Docker | Done | Image smoke-tested + pushed to ACR (`…/ai-on-kubernetes:local`); pitch deferred |
 | 3 — Kind (local K8s) | Not started | **Next** — main K8s learning |
-| 4 — AKS + Terraform | Not started | Same manifests as Kind |
+| 4 — AKS + Terraform | Not started | Same manifests as Kind; includes ACR Entra auth fix |
 | 5 — Thin CI | Not started | |
 | 6 — Workload Identity | Deferred | Advanced |
 | 7 — Thin RAG | Deferred | Advanced |
