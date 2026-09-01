@@ -4,6 +4,8 @@ Learning-focused guide for the portfolio project described below.
 
 Hero skills: **Docker + Kubernetes + AI**. Heavy observability is **out of scope** (covered at work) — keep only thin logs + `kubectl`.
 
+**SDET upskill track:** if you focus on **testing and automation**, see [SDET upskill track](#sdet-upskill-track--testing--automation) below — Tier 1 + Tier 2 phases first; platform/feature depth is in [deferred-phases.md](deferred-phases.md).
+
 ---
 
 ## What this project is
@@ -42,17 +44,15 @@ Clients call *your* API; you forward the prompt to a hosted model and return the
 
 ### Goals (advanced — after core)
 
-- **Workload Identity** — pod → Azure OpenAI without long-lived keys in Secrets
-- **Thin RAG** — tiny doc set, retrieve-then-generate behind the same proxy
-- **Thin evals** — golden prompts that can fail CI (quality gate, not dashboards)
-- **GitOps** — cluster desired state from git (Argo CD or Flux)
+- **Thin evals** — golden prompts that can fail CI (quality gate, not dashboards) — **SDET Tier 1**
+- **Workload Identity**, **thin RAG**, **GitOps**, **optional Go** — [deferred-phases.md](deferred-phases.md); still valid for platform/backend paths
 
 ### Non-goals
 
 - Heavy Azure Monitor / Prometheus / SLO dashboard portfolio work (doing similar at work)
 - GPU node pools, service mesh, multi-cluster
 - Fine-tuning / training jobs
-- Go companion, deep ML theory, production multi-region platforms
+- Full Go operators / CRD frameworks, deep ML theory, production multi-region platforms
 
 ---
 
@@ -77,6 +77,7 @@ ai-on-kubernetes/
   README.md
   docs/
     project-roadmap.md      # this file
+    deferred-phases.md      # Phases 6, 7, 9, optional Go (SDET Tier 3 / platform depth)
     architecture.md         # fill in after Kind/AKS
     runbook.md              # create/destroy AKS + debug pods + identity
   src/
@@ -89,6 +90,7 @@ ai-on-kubernetes/
     evals/                  # optional Phase 8
   deploy/
     k8s/                    # Deployment, Service, probes, Secret examples
+  cmd/k8s-inspect/          # optional — Go CLI (client-go) to query the proxy workload
   infra/                    # Terraform (AKS, RG, …)
   .github/workflows/
   Dockerfile
@@ -113,6 +115,69 @@ Not a portfolio observability project — depth lives at work. Here you only nee
 
 ---
 
+## SDET upskill track — testing & automation
+
+For **SDETs focused on testing and automation** upskilling on containers, Kubernetes, and AI API quality. The phased plan below is **build order**; this section is **resume ROI for test automation**.
+
+**Headline:** automate quality for an AI API — pytest with mocked dependencies in CI, smoke tests against Kubernetes, golden-prompt evals that gate on behavior.
+
+### Automation stack (build in this order)
+
+```text
+Layer 1 — API tests (Phase 1)      pytest + TestClient + mocked Azure OpenAI
+Layer 2 — Pipeline (Phase 5)       GitHub Actions blocks merge on tests + builds image
+Layer 3 — Deploy smoke (Phase 3)   scripted checks against Kind after manifest apply
+Layer 4 — AI quality (Phase 8)     golden_cases.json + scorer + CI job
+Layer 5 — Cloud smoke (Phase 4)    same smoke scripts; optional nightly against AKS
+```
+
+### Tier 1 — highest resume ROI
+
+| Rank | Phase | Automation focus | Key artifacts |
+|------|-------|------------------|---------------|
+| **1** | **5 — Thin CI** | Gate every PR: pytest → build image → fail fast | `.github/workflows/ci.yml` |
+| **2** | **1 — API + mocks** | Deterministic API tests; no live OpenAI in CI | `tests/test_app.py`, `mocker.patch("main.chat")` |
+| **3** | **8 — Thin evals** | Behavior regression automation for LLM output | `tests/evals/golden_cases.json`, CI eval job |
+| **4** | **3 — Kind smoke** | Post-deploy validation against running cluster | `tests/smoke/` or `scripts/smoke.sh` |
+
+**Tier 1 done when:**
+
+- [ ] CI runs pytest on every PR and **blocks merge on failure**
+- [ ] CI builds (and optionally pushes) the container image
+- [ ] API tests cover `/health`, `/v1/chat` contract, and error paths with **mocked provider**
+- [ ] Smoke automation hits `/health` and `/v1/chat` after `kubectl apply` on Kind
+- [ ] Eval job fails CI when golden-prompt score drops below baseline
+
+### Tier 2 — supporting upskill
+
+| Rank | Phase | Why for automation |
+|------|-------|-------------------|
+| **5** | **2 — Docker** | Test the **same image** CI builds; env-injected secrets at runtime |
+| **6** | **0 — Skeleton** | FastAPI + pytest baseline — largely done |
+| **7** | **4 — AKS + Terraform** | Optional **staging target** for nightly smoke — after Kind automation works |
+
+### Recommended study order (SDET, not build order)
+
+| Step | Phase | Notes |
+|------|-------|-------|
+| 1 | **1** | ✅ Mostly done — extend API/error coverage if gaps remain |
+| 2 | **5** | CI before AKS — claim pipeline ownership early |
+| 3 | **3** | Kind smoke — environment-level automation |
+| 4 | **8** | Eval gate — “SDET + AI” hook |
+| 5 | **2** | Supports image-based smoke (done) |
+| 6 | **4** | Stretch: cloud staging for nightly smoke |
+
+### Resume bullets (testing & automation)
+
+1. **Automated API test suite** for FastAPI LLM proxy — mocked Azure OpenAI in CI for deterministic, zero-token runs.
+2. **CI pipeline** runs pytest on every PR and **blocks merge on failure**; builds container image as deploy artifact.
+3. **Post-deployment smoke automation** against Kubernetes (Kind): `/health` and `/v1/chat` after manifest apply.
+4. *(With Phase 8)* **LLM eval automation**: golden prompt set; pipeline fails on quality regression.
+
+**Interview one-liner:** “I automated quality for an AI API — pytest with mocked dependencies in CI, smoke tests against a Kubernetes deployment, and golden-prompt evals that gate releases on behavior.”
+
+---
+
 ## Phased plan
 
 Mark items `[x]` as you finish. Stay on one phase until the “done when” bar is met.
@@ -120,6 +185,8 @@ Mark items `[x]` as you finish. Stay on one phase until the “done when” bar 
 **Readings:** **Known** = already familiar (refresher); **New** = focus study time.
 
 ### Phase 0 — Repo + local API skeleton
+
+**SDET Tier 2** — baseline; don’t headline alone on resume.
 
 **Learn:** project layout, health endpoint, stub chat.
 
@@ -142,6 +209,8 @@ Mark items `[x]` as you finish. Stay on one phase until the “done when” bar 
 ---
 
 ### Phase 1 — Azure OpenAI integration
+
+**SDET Tier 1** — API automation + mocked provider in CI.
 
 **Learn:** Azure OpenAI deployments, keys, token usage in responses.
 
@@ -167,6 +236,8 @@ Mark items `[x]` as you finish. Stay on one phase until the “done when” bar 
 ---
 
 ### Phase 2 — Docker
+
+**SDET Tier 2** — test the same image CI builds.
 
 **Build (compact):** ship one image of the FastAPI proxy; inject Azure config at **runtime**. Same image → Kind → AKS later.
 
@@ -244,12 +315,15 @@ docker push \
 
 ### Phase 3 — Kubernetes locally (Kind)
 
+**SDET Tier 1** — post-deploy smoke automation against a running cluster.
+
 **Learn:** Deployment, Service, probes, Secret — before paying for AKS. This is the **main** K8s learning phase.
 
 - [ ] Kind cluster
 - [ ] Manifests under `deploy/k8s/`: Deployment + Service + liveness/readiness on `/health`
 - [ ] Secret (or documented stub mode) for OpenAI endpoint/key/deployment
 - [ ] Load image into Kind; `kubectl port-forward` smoke test
+- [ ] **SDET:** automate smoke (`tests/smoke/` or `scripts/smoke.sh`) — `/health` + `/v1/chat` after apply
 - [ ] Be able to explain probes, restarts, and `kubectl logs` / `describe`
 
 **Done when:** app runs in Kind; same YAML is what you will take to AKS.
@@ -266,6 +340,8 @@ docker push \
 ---
 
 ### Phase 4 — AKS + Terraform
+
+**SDET Tier 2** — optional cloud staging target for the same smoke suite.
 
 **Learn:** managed Kubernetes on Azure via **IaC**; reuse Kind manifests; cost hygiene.
 
@@ -294,6 +370,8 @@ Keyless identity is **Phase 6** (do not block Phase 4 on it).
 
 ### Phase 5 — Thin CI
 
+**SDET Tier 1** — merge gates and pipeline ownership.
+
 **Learn:** gate on tests; build the image; optional AKS deploy when the cluster exists.
 
 - [ ] GitHub Actions: pytest (mocked OpenAI) on PR/push
@@ -314,49 +392,11 @@ Keyless identity is **Phase 6** (do not block Phase 4 on it).
 
 Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep each phase **thin**.
 
-### Phase 6 — Workload Identity & secrets
-
-**Learn:** keyless pod → Azure OpenAI; tighten secret handling.
-
-**Why:** Long-lived API keys in Secrets are a weak demo story. Workload Identity is what production AKS + Azure AI setups aim for, and it differentiates this project from “I put a key in an env var.” Complements Docker/K8s without overlapping work observability.
-
-- [ ] Enable workload identity on the lab AKS (Terraform or documented steps)
-- [ ] Bind the proxy ServiceAccount to an identity that can call Azure OpenAI
-- [ ] Remove (or stop requiring) the OpenAI API key Secret for the AKS deploy path
-- [ ] Optional: NetworkPolicy denying egress except OpenAI/DNS
-- [ ] Update `docs/runbook.md` with the identity story
-
-**Done when:** chat on AKS works **without** an API key in the pod Secret; you can explain the identity chain in an interview.
-
-| Reading | Why | Status |
-|---------|-----|--------|
-| [AKS workload identity](https://learn.microsoft.com/azure/aks/workload-identity-overview) | Pod → Entra identity | Known MI idea; **New** on AKS |
-| [OpenAI + Managed Identity](https://learn.microsoft.com/azure/ai-services/openai/how-to/managed-identity) | Keyless calls to the model | New |
-| [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) | Optional egress lock-down | New |
-
----
-
-### Phase 7 — Thin RAG
-
-**Learn:** retrieve-then-generate with a tiny doc set behind the same proxy.
-
-**Why:** Interviewers often ask how grounded answers work. A small RAG path shows AI systems design on top of your K8s proxy — without turning the repo into a search-product or needing dashboards.
-
-- [ ] Ingest a tiny doc set (Azure AI Search **or** embedded vectors — pick one)
-- [ ] `/v1/chat` (or `/v1/chat/rag`) retrieves context, then calls Azure OpenAI
-- [ ] Document limits: corpus size, failure mode when retrieval misses
-- [ ] Tests: mock retrieval + model (no live spend in CI)
-
-**Done when:** a question that needs the docs answers with grounded content; a question outside the docs behaves safely (refuse or say unknown).
-
-| Reading | Why | Status |
-|---------|-----|--------|
-| [RAG solution design](https://learn.microsoft.com/azure/architecture/ai-ml/guide/rag/rag-solution-design-and-evaluation-guide) | Retrieve → generate pattern | New |
-| [Azure AI Search + RAG](https://learn.microsoft.com/azure/search/retrieval-augmented-generation-overview) | Hosted retrieval option | New |
-
----
+**SDET track:** prioritize **Phase 8** (evals). Phases 6, 7, 9, and optional Go → [deferred-phases.md](deferred-phases.md).
 
 ### Phase 8 — Thin evals (quality gate)
+
+**SDET Tier 1** — behavior regression automation for LLM output.
 
 **Learn:** golden prompts, baseline score, fail CI on quality drop.
 
@@ -376,28 +416,17 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 
 ---
 
-### Phase 9 — GitOps
-
-**Learn:** cluster desired state from git (Argo CD or Flux — pick one).
-
-**Why:** Phase 5 pushes an image; GitOps answers “how does the cluster stay aligned with the repo?” Strong platform signal next to Terraform/AKS, and still separate from metrics/dashboards.
-
-- [ ] Install Argo CD **or** Flux on the lab AKS
-- [ ] Point it at `deploy/k8s/` (or a render of it); sync the proxy
-- [ ] Demo: change a manifest in git → cluster updates (or show sync UI + `kubectl`)
-- [ ] Document: GitOps vs `workflow_dispatch` kubectl apply
-
-**Done when:** a git change is the source of truth for the proxy Deployment on AKS (lab cluster).
-
-| Reading | Why | Status |
-|---------|-----|--------|
-| [GitOps principles](https://opengitops.dev/) | Desired state in git | New |
-| [Flux on AKS](https://learn.microsoft.com/azure/azure-arc/kubernetes/tutorial-use-gitops-flux2) | One Azure-friendly path | New |
-| [Argo CD getting started](https://argo-cd.readthedocs.io/en/stable/getting_started/) | Alternate popular controller | New |
-
----
-
 ## Skills → resume mapping
+
+### SDET track (testing & automation)
+
+| Tier | Phases | Skills to claim |
+|------|--------|-----------------|
+| **1** | 5, 1, 8, 3 | CI merge gates, API automation, mocked deps, K8s smoke, LLM eval gate |
+| **2** | 2, 0, 4 | Docker image testing, FastAPI/pytest baseline, optional AKS staging smoke |
+| **3** | 6, 7, 9, Go | Defer — see [deferred-phases.md](deferred-phases.md) |
+
+### Full project
 
 | Phase | Skills to claim |
 |-------|-----------------|
@@ -406,14 +435,17 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 | 3 | Kubernetes primitives, probes, Secrets (Kind) |
 | 4 | AKS, Terraform, cloud cost hygiene |
 | 5 | CI for containerized apps |
+| 8 | AI eval / quality gating in CI |
 | 6 | AKS Workload Identity, keyless AI auth |
 | 7 | Thin RAG on a K8s-hosted proxy |
-| 8 | AI eval / quality gating in CI |
 | 9 | GitOps (Argo CD or Flux) |
+| Optional | Go, client-go, programmatic K8s API access |
 
 ---
 
 ## Suggested pace
+
+### Default (build order)
 
 | Weeks | Focus |
 |-------|--------|
@@ -423,7 +455,17 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 | 5–6 | Phase 4 (Terraform + AKS) |
 | 7 | Phase 5 (thin CI) + polish README / demo script |
 | 8 | **Interview polish** — container pitch, demo script, resume bullets |
-| Later | Advanced 6 → 7 → 8 → 9 (one at a time) |
+| Later | Phase 8 (evals); [deferred phases](deferred-phases.md) as needed |
+
+### SDET track (automation ROI)
+
+| Weeks | Focus |
+|-------|--------|
+| 1 | Phase 1 — extend API tests ✅ mostly done |
+| 2 | Phase 5 — CI merge gates (**next win**) |
+| 3 | Phase 3 — Kind + automated smoke |
+| 4 | Phase 8 — eval gate |
+| 5+ | Phase 4 — optional AKS staging smoke; [deferred](deferred-phases.md) only if role needs it |
 
 Destroy AKS when not demoing — node pools dominate cost.
 
@@ -437,7 +479,7 @@ Destroy AKS when not demoing — node pools dominate cost.
 4. `kubectl get pods` / logs  
 5. CI: pytest + image build  
 6. `terraform destroy` cost note  
-7. Optional: Workload Identity, RAG answer, eval gate, or GitOps sync  
+7. Optional: eval gate, or deferred items in [deferred-phases.md](deferred-phases.md)  
 
 ---
 
@@ -463,6 +505,7 @@ Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain con
 - kubectl, Kind, Terraform, Azure CLI (`az login`)  
 - Python 3.13+  
 - GitHub repo for Actions  
+- **Optional (Go track):** Go 1.22+ — see [deferred-phases.md](deferred-phases.md)  
 
 **Readings** live under each phase (**Known** = refresher; **New** = focus). Skim one **New** overview per phase, then build.
 
@@ -470,16 +513,17 @@ Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain con
 
 ## Progress checklist (roll-up)
 
-| Phase | Status | Notes |
-|-------|--------|-------|
-| 0 — Skeleton | Done | Local `/health` + `/v1/chat`; pytest green |
-| 1 — Azure OpenAI | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
-| 2 — Docker | Done | Image smoke-tested + pushed to ACR (`…/ai-on-kubernetes:local`); pitch deferred |
-| 3 — Kind (local K8s) | Not started | **Next** — main K8s learning |
-| 4 — AKS + Terraform | Not started | Same manifests as Kind; includes ACR Entra auth fix |
-| 5 — Thin CI | Not started | |
-| 6 — Workload Identity | Deferred | Advanced |
-| 7 — Thin RAG | Deferred | Advanced |
-| 8 — Thin evals | Deferred | Advanced |
-| 9 — GitOps | Deferred | Advanced |
-| Interview polish | Deferred | After core path — container pitch + demo |
+| Phase | SDET tier | Status | Notes |
+|-------|-----------|--------|-------|
+| 0 — Skeleton | 2 | Done | Local `/health` + `/v1/chat`; pytest green |
+| 1 — Azure OpenAI | 1 | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
+| 2 — Docker | 2 | Done | Image smoke-tested + pushed to ACR (`…/ai-on-kubernetes:local`) |
+| 3 — Kind (local K8s) | 1 | Not started | **Next** — K8s + smoke automation |
+| 4 — AKS + Terraform | 2 | Not started | Optional staging for smoke suite |
+| 5 — Thin CI | 1 | Not started | **SDET: high priority** — merge gates |
+| 8 — Thin evals | 1 | Not started | After CI + Kind smoke |
+| 6 — Workload Identity | 3 | Deferred | [deferred-phases.md](deferred-phases.md) |
+| 7 — Thin RAG | 3 | Deferred | [deferred-phases.md](deferred-phases.md) |
+| 9 — GitOps | 3 | Deferred | [deferred-phases.md](deferred-phases.md) |
+| Optional — Go + client-go | 3 | Not started | [deferred-phases.md](deferred-phases.md) |
+| Interview polish | — | Deferred | After core path — container pitch + demo |
