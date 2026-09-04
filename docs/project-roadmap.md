@@ -162,7 +162,7 @@ Layer 5 — Cloud smoke (Phase 4)    same smoke scripts; optional nightly agains
 |------|-------|-------|
 | 1 | **1** | ✅ API + mocks |
 | 2 | **2** | ✅ Docker |
-| 3 | **3** | Kind — manual ✅; drills + **smoke script** next |
+| 3 | **3** | Kind — manual ✅; drills ✅; **smoke script** next |
 | 4 | **5** | CI merge gates — high resume ROI |
 | 5 | **8** | Eval gate — “SDET + AI” hook |
 | 6 | **4** | Stretch: AKS staging for nightly smoke |
@@ -326,7 +326,7 @@ docker push \
 - [x] Secret for OpenAI endpoint/key/deployment (`secret.yaml` gitignored; example committed)
 - [x] Load image into Kind; `kubectl port-forward` smoke test (`/health` ✅)
 - [ ] Confirm `/v1/chat` through port-forward
-- [x] Finish learning drills in `deployments/k8/README.md` (wrong selector, image typo, delete/re-apply; optional: bad probe, rewrite Service)
+- [x] Finish learning drills in `deployments/k8/README.md` (wrong selector, image typo, delete/re-apply; bad probe; rewrite Service — duplicate `spec:` / `port` vs `targetPort`)
 - [ ] **SDET:** automate smoke (`tests/smoke/` or `scripts/smoke.sh`) — `/health` + `/v1/chat` after apply
 - [x] Be able to explain probes, restarts, and `kubectl logs` / `describe` (lab: Service as door, port-forward as process, wrong selector → empty endpoints)
 
@@ -466,7 +466,7 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 | Weeks | Focus |
 |-------|--------|
 | 1 | Phase 1 — API tests ✅ |
-| Now | Phase 3 — Kind **in progress** (manual ✅ → drills → smoke script) |
+| Now | Phase 3 — Kind **in progress** (manual ✅ → drills ✅ → smoke script next) |
 | Next | Phase 5 — CI merge gates (**high resume ROI**) |
 | Then | Phase 8 — eval gate |
 | Later | Phase 4 — optional AKS staging smoke; [deferred](deferred-phases.md) only if role needs it |
@@ -522,7 +522,7 @@ Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain con
 | 0 — Skeleton | 2 | Done | Local `/health` + `/v1/chat`; pytest green |
 | 1 — Azure OpenAI | 1 | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
 | 2 — Docker | 2 | Done | Image smoke-tested + pushed to ACR (`…/ai-on-kubernetes:local`) |
-| 3 — Kind (local K8s) | 1 | **In progress** | Manual deploy + `/health` ✅; next: drills → smoke script → then CI |
+| 3 — Kind (local K8s) | 1 | **In progress** | Manual deploy + `/health` ✅; drills ✅; next: `/v1/chat` smoke → smoke script → then CI |
 | 4 — AKS + Terraform | 2 | Not started | Optional staging for smoke suite |
 | 5 — Thin CI | 1 | Not started | **SDET: high priority** — merge gates |
 | 8 — Thin evals | 1 | Not started | After CI + Kind smoke |
