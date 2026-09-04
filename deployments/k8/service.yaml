@@ -1,0 +1,13 @@
+# WHAT: A stable address to reach your pod(s).
+# KEY IDEA: selector.app must match the Deployment pod labels.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-on-kubernetes
+spec:
+  selector:
+    app: ai-on-kubernetes
+  ports:
+    - port: 8000
+      targetPort: 8000

@@ -88,9 +88,9 @@ ai-on-kubernetes/
   tests/
     test_app.py
     evals/                  # optional Phase 8
-  deploy/
-    k8s/                    # Deployment, Service, probes, Secret examples
-  cmd/k8s-inspect/          # optional — Go CLI (client-go) to query the proxy workload
+  deployments/
+    k8/                     # Kind/AKS manifests: Deployment, Service, Secret (+ README)
+  cmd/k8s-inspect/          # optional — Go CLI (client-go); see deferred-phases.md
   infra/                    # Terraform (AKS, RG, …)
   .github/workflows/
   Dockerfile
@@ -145,7 +145,7 @@ Layer 5 — Cloud smoke (Phase 4)    same smoke scripts; optional nightly agains
 - [ ] CI runs pytest on every PR and **blocks merge on failure**
 - [ ] CI builds (and optionally pushes) the container image
 - [ ] API tests cover `/health`, `/v1/chat` contract, and error paths with **mocked provider**
-- [ ] Smoke automation hits `/health` and `/v1/chat` after `kubectl apply` on Kind
+- [ ] Smoke automation hits `/health` and `/v1/chat` after `kubectl apply` on Kind (**next Phase 3 win**)
 - [ ] Eval job fails CI when golden-prompt score drops below baseline
 
 ### Tier 2 — supporting upskill
@@ -160,12 +160,12 @@ Layer 5 — Cloud smoke (Phase 4)    same smoke scripts; optional nightly agains
 
 | Step | Phase | Notes |
 |------|-------|-------|
-| 1 | **1** | ✅ Mostly done — extend API/error coverage if gaps remain |
-| 2 | **5** | CI before AKS — claim pipeline ownership early |
-| 3 | **3** | Kind smoke — environment-level automation |
-| 4 | **8** | Eval gate — “SDET + AI” hook |
-| 5 | **2** | Supports image-based smoke (done) |
-| 6 | **4** | Stretch: cloud staging for nightly smoke |
+| 1 | **1** | ✅ API + mocks |
+| 2 | **2** | ✅ Docker |
+| 3 | **3** | Kind — manual ✅; drills + **smoke script** next |
+| 4 | **5** | CI merge gates — high resume ROI |
+| 5 | **8** | Eval gate — “SDET + AI” hook |
+| 6 | **4** | Stretch: AKS staging for nightly smoke |
 
 ### Resume bullets (testing & automation)
 
@@ -319,14 +319,18 @@ docker push \
 
 **Learn:** Deployment, Service, probes, Secret — before paying for AKS. This is the **main** K8s learning phase.
 
-- [ ] Kind cluster
-- [ ] Manifests under `deploy/k8s/`: Deployment + Service + liveness/readiness on `/health`
-- [ ] Secret (or documented stub mode) for OpenAI endpoint/key/deployment
-- [ ] Load image into Kind; `kubectl port-forward` smoke test
-- [ ] **SDET:** automate smoke (`tests/smoke/` or `scripts/smoke.sh`) — `/health` + `/v1/chat` after apply
-- [ ] Be able to explain probes, restarts, and `kubectl logs` / `describe`
+**Path:** manifests live under `deployments/k8/` (see that folder’s README for kubectl notes from lab).
 
-**Done when:** app runs in Kind; same YAML is what you will take to AKS.
+- [x] Kind cluster
+- [x] Manifests under `deployments/k8/`: Deployment + Service + liveness/readiness on `/health`
+- [x] Secret for OpenAI endpoint/key/deployment (`secret.yaml` gitignored; example committed)
+- [x] Load image into Kind; `kubectl port-forward` smoke test (`/health` ✅)
+- [ ] Confirm `/v1/chat` through port-forward
+- [x] Finish learning drills in `deployments/k8/README.md` (wrong selector, image typo, delete/re-apply; optional: bad probe, rewrite Service)
+- [ ] **SDET:** automate smoke (`tests/smoke/` or `scripts/smoke.sh`) — `/health` + `/v1/chat` after apply
+- [x] Be able to explain probes, restarts, and `kubectl logs` / `describe` (lab: Service as door, port-forward as process, wrong selector → empty endpoints)
+
+**Done when:** app runs in Kind; smoke is scripted; same YAML is what you will take to AKS.
 
 | Reading | Why | Status |
 |---------|-----|--------|
@@ -346,7 +350,7 @@ docker push \
 **Learn:** managed Kubernetes on Azure via **IaC**; reuse Kind manifests; cost hygiene.
 
 - [ ] Terraform in `infra/`: resource group + small AKS (cheap node SKU; destroy when done)
-- [ ] `terraform apply` → `az aks get-credentials` (or output kubeconfig); apply the **same** `deploy/k8s/` manifests
+- [ ] `terraform apply` → `az aks get-credentials` (or output kubeconfig); apply the **same** `deployments/k8/` manifests
 - [ ] Image from ACR (or documented pull path); Secret for OpenAI
 - [ ] **Fix ACR Entra auth** (so admin password isn’t required): e.g. Member user or working `az acr login` + **AcrPush**; confirm Portal can list repos; then disable ACR admin user if you turned it on for the lab
 - [ ] Ingress **or** LoadBalancer **or** port-forward for demo access
@@ -461,11 +465,11 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 
 | Weeks | Focus |
 |-------|--------|
-| 1 | Phase 1 — extend API tests ✅ mostly done |
-| 2 | Phase 5 — CI merge gates (**next win**) |
-| 3 | Phase 3 — Kind + automated smoke |
-| 4 | Phase 8 — eval gate |
-| 5+ | Phase 4 — optional AKS staging smoke; [deferred](deferred-phases.md) only if role needs it |
+| 1 | Phase 1 — API tests ✅ |
+| Now | Phase 3 — Kind **in progress** (manual ✅ → drills → smoke script) |
+| Next | Phase 5 — CI merge gates (**high resume ROI**) |
+| Then | Phase 8 — eval gate |
+| Later | Phase 4 — optional AKS staging smoke; [deferred](deferred-phases.md) only if role needs it |
 
 Destroy AKS when not demoing — node pools dominate cost.
 
@@ -474,7 +478,7 @@ Destroy AKS when not demoing — node pools dominate cost.
 ## Demo script (for interviews)
 
 1. Architecture: client → container on K8s → Azure OpenAI (30s)  
-2. Show Dockerfile + `deploy/k8s/` + Terraform `infra/`  
+2. Show Dockerfile + `deployments/k8/` + Terraform `infra/`  
 3. Kind or AKS: `curl /health` + `curl /v1/chat`  
 4. `kubectl get pods` / logs  
 5. CI: pytest + image build  
@@ -518,7 +522,7 @@ Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain con
 | 0 — Skeleton | 2 | Done | Local `/health` + `/v1/chat`; pytest green |
 | 1 — Azure OpenAI | 1 | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
 | 2 — Docker | 2 | Done | Image smoke-tested + pushed to ACR (`…/ai-on-kubernetes:local`) |
-| 3 — Kind (local K8s) | 1 | Not started | **Next** — K8s + smoke automation |
+| 3 — Kind (local K8s) | 1 | **In progress** | Manual deploy + `/health` ✅; next: drills → smoke script → then CI |
 | 4 — AKS + Terraform | 2 | Not started | Optional staging for smoke suite |
 | 5 — Thin CI | 1 | Not started | **SDET: high priority** — merge gates |
 | 8 — Thin evals | 1 | Not started | After CI + Kind smoke |

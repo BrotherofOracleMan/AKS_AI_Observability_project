@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# K8s secrets (copy from deployments/k8/secret.example.yaml)
+deployments/k8/secret.yaml
+
 # Python
 __pycache__/
 *.py[cod]
