@@ -2,15 +2,9 @@ from fastapi.testclient import TestClient
 from openai_client import fake_chat_completion
 from main import app
 from models import ChatRequest
+import pytest
 
 client = TestClient(app)
-
-
-def test_health():
-    r = client.get("/health")
-    assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
-
 
 def test_chat_stub(mocker):
 

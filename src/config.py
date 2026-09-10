@@ -7,5 +7,7 @@ class Config(BaseSettings):
     azure_openai_api_key: str
     azure_openai_model: str
     azure_openai_api_version: str
+    base_url: str
+
     
 config = Config()

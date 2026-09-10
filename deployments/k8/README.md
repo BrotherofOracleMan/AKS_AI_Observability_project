@@ -1,6 +1,6 @@
 # Kind manifests — learning guide
 
-**Status (Sep 2026):** Phase 3 manual path works — Kind cluster, image loaded, Deployment + Service + Secret applied, pod **Ready 1/1**, `/health` via port-forward. Learning drills done. **Next:** confirm `/v1/chat` through the tunnel, then automate smoke (SDET).
+**Status (Sep 2026):** Phase 3 **done** — Kind cluster, manifests, drills, `/health` + `/v1/chat` via port-forward, smoke via `./probe_smoke.sh`. **Next:** Phase 5 thin CI.
 
 Three small files. Read top-to-bottom in this order.
 
@@ -154,25 +154,21 @@ docker exec kind-control-plane crictl images | grep ai-on-kubernetes
 
 ## What's next (directions)
 
-**Still Phase 3:**
+**Phase 3 smoke (done):**
 
-1. Re-apply the reverted Service if the cluster still has `port: 9000`:
+1. Start the tunnel (leave it running):
    ```bash
-   kubectl apply -f deployments/k8/service.yaml
    kubectl port-forward svc/ai-on-kubernetes 8000:8000
    ```
-2. Confirm chat works through the tunnel:
+2. In another terminal (venv activated):
    ```bash
-   curl -s http://localhost:8000/v1/chat \
-     -H "Content-Type: application/json" -X POST \
-     -d '{"messages":[{"role":"user","content":"hello"}]}'
+   ./probe_smoke.sh
    ```
-3. Practice saying out loud: Deployment / Pod / Service / Secret / readiness vs liveness / `port` vs `targetPort` / port-forward.
+   That runs `pytest tests/test_smoke.py -v -m live` against `BASE_URL` (`http://localhost:8000`).
 
 **Then SDET (roadmap Tier 1):**
 
-4. Automate smoke: `scripts/smoke.sh` or `tests/smoke/` — `/health` + `/v1/chat` after apply.
-5. **Phase 5 — Thin CI** — GitHub Actions: pytest on PR + build image (high resume ROI).
-6. Phase 8 evals later; Phase 4 AKS after Kind smoke is scripted.
+3. **Phase 5 — Thin CI** — GitHub Actions: pytest on PR + build image (high resume ROI).
+4. Phase 8 evals later; Phase 4 AKS optional after CI.
 
 See [docs/project-roadmap.md](../../docs/project-roadmap.md) — SDET track + Phase 3 checklist.

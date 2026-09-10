@@ -145,7 +145,7 @@ Layer 5 — Cloud smoke (Phase 4)    same smoke scripts; optional nightly agains
 - [ ] CI runs pytest on every PR and **blocks merge on failure**
 - [ ] CI builds (and optionally pushes) the container image
 - [ ] API tests cover `/health`, `/v1/chat` contract, and error paths with **mocked provider**
-- [ ] Smoke automation hits `/health` and `/v1/chat` after `kubectl apply` on Kind (**next Phase 3 win**)
+- [x] Smoke automation hits `/health` and `/v1/chat` on Kind (`./probe_smoke.sh` / `pytest -m live`)
 - [ ] Eval job fails CI when golden-prompt score drops below baseline
 
 ### Tier 2 — supporting upskill
@@ -162,7 +162,7 @@ Layer 5 — Cloud smoke (Phase 4)    same smoke scripts; optional nightly agains
 |------|-------|-------|
 | 1 | **1** | ✅ API + mocks |
 | 2 | **2** | ✅ Docker |
-| 3 | **3** | Kind — manual ✅; drills ✅; **smoke script** next |
+| 3 | **3** | Kind ✅ — smoke via `./probe_smoke.sh` |
 | 4 | **5** | CI merge gates — high resume ROI |
 | 5 | **8** | Eval gate — “SDET + AI” hook |
 | 6 | **4** | Stretch: AKS staging for nightly smoke |
@@ -325,9 +325,9 @@ docker push \
 - [x] Manifests under `deployments/k8/`: Deployment + Service + liveness/readiness on `/health`
 - [x] Secret for OpenAI endpoint/key/deployment (`secret.yaml` gitignored; example committed)
 - [x] Load image into Kind; `kubectl port-forward` smoke test (`/health` ✅)
-- [ ] Confirm `/v1/chat` through port-forward
+- [x] Confirm `/v1/chat` through port-forward (`gpt-4.1-mini` reply ✅)
 - [x] Finish learning drills in `deployments/k8/README.md` (wrong selector, image typo, delete/re-apply; bad probe; rewrite Service — duplicate `spec:` / `port` vs `targetPort`)
-- [ ] **SDET:** automate smoke (`tests/smoke/` or `scripts/smoke.sh`) — `/health` + `/v1/chat` after apply
+- [x] **SDET:** automate smoke (`./probe_smoke.sh` → `pytest -m live`) — `/health` + `/v1/chat` (port-forward first)
 - [x] Be able to explain probes, restarts, and `kubectl logs` / `describe` (lab: Service as door, port-forward as process, wrong selector → empty endpoints)
 
 **Done when:** app runs in Kind; smoke is scripted; same YAML is what you will take to AKS.
@@ -466,9 +466,8 @@ Only after the Docker → Kind → Terraform/AKS → CI path is demo-ready. Keep
 | Weeks | Focus |
 |-------|--------|
 | 1 | Phase 1 — API tests ✅ |
-| Now | Phase 3 — Kind **in progress** (manual ✅ → drills ✅ → smoke script next) |
-| Next | Phase 5 — CI merge gates (**high resume ROI**) |
-| Then | Phase 8 — eval gate |
+| Now | Phase 5 — Thin CI (**high resume ROI**) |
+| Next | Phase 8 — eval gate |
 | Later | Phase 4 — optional AKS staging smoke; [deferred](deferred-phases.md) only if role needs it |
 
 Destroy AKS when not demoing — node pools dominate cost.
@@ -522,7 +521,7 @@ Do this **after** Kind/AKS/CI — not as a Phase 2 blocker. You’ll explain con
 | 0 — Skeleton | 2 | Done | Local `/health` + `/v1/chat`; pytest green |
 | 1 — Azure OpenAI | 1 | Done | Foundry + `gpt-4.1-mini`; live chat; logs; mocked tests |
 | 2 — Docker | 2 | Done | Image smoke-tested + pushed to ACR (`…/ai-on-kubernetes:local`) |
-| 3 — Kind (local K8s) | 1 | **In progress** | Manual deploy + `/health` ✅; drills ✅; next: `/v1/chat` smoke → smoke script → then CI |
+| 3 — Kind (local K8s) | 1 | **Done** | Manual path + drills + `./probe_smoke.sh` (`pytest -m live`) |
 | 4 — AKS + Terraform | 2 | Not started | Optional staging for smoke suite |
 | 5 — Thin CI | 1 | Not started | **SDET: high priority** — merge gates |
 | 8 — Thin evals | 1 | Not started | After CI + Kind smoke |
