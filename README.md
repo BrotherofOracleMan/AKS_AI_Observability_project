@@ -10,9 +10,9 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 
 **The point:** prove you can run **AI inference as a real workload on Kubernetes** — container, manifests, cluster, CI — not as a one-off script or Jupyter notebook experiment.
 
-**Core path:** stub API → Azure OpenAI → Docker → Kind → Terraform/AKS → thin CI  
+**Core path:** stub API → Azure OpenAI → Docker → Kind → thin CI → evals → AKS (Terraform)
 
-**Advanced (later):** Workload Identity → thin RAG → thin evals → GitOps  
+**Advanced (later):** Workload Identity → thin RAG → GitOps — see [docs/deferred-phases.md](docs/deferred-phases.md)
 
 **Out of scope:** heavy observability (covered at work), GPU pools, service mesh, multi-cluster, fine-tuning.
 
@@ -23,18 +23,18 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 | Docker | Ship a real API image, not only `uvicorn` on a laptop |
 | Kubernetes | Deployments, Services, probes, Secrets — Kind then AKS |
 | AI | Thin `/v1/chat` proxy in front of **Azure OpenAI** |
-| IaC | **Terraform** for AKS create/destroy |
-| Advanced | Workload Identity, thin RAG, thin evals, GitOps |
+| CI / quality | Mocked pytest, smoke, eval gates |
+| IaC | **Terraform** for AKS create/destroy (Phase 6) |
 
 ## Stack (target)
 
 - **Python 3.13** + **FastAPI** — `/health` + `/v1/chat` proxy
-- **Docker** → **Kind** → **AKS** (same manifests)
-- **Terraform** — RG + AKS in `infra/`
+- **Docker** → **Kind** → **CI** → **evals** → **AKS** (same manifests)
+- **GitHub Actions** — mocked pytest → build image
+- **Terraform** — RG + AKS in `infra/` (Phase 6)
 - **Azure OpenAI** — hosted chat model
-- **GitHub Actions** — pytest (mocked OpenAI) → build image (optional deploy)
 
-**Advanced (after core):** Workload Identity → thin RAG → thin evals → GitOps.
+**Advanced (after Phase 6):** Workload Identity, thin RAG, GitOps — [docs/deferred-phases.md](docs/deferred-phases.md).
 
 ## Local setup
 
@@ -84,6 +84,6 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–2 done** (API + Azure OpenAI + Docker image smoke-tested and pushed to ACR as `…/ai-on-kubernetes:local`).  
-**Phase 3 in progress:** Kind cluster; manifests in [`deployments/k8/`](deployments/k8/); app **Ready** with `/health` via port-forward.  
-**Next:** finish Kind drills + automate smoke, then **Phase 5 (CI)**. Details: [docs/project-roadmap.md](docs/project-roadmap.md).
+Phases **0–3 done** (API → Azure OpenAI → Docker → Kind + `./probe_smoke.sh`).  
+**Next: Phase 4 — Thin CI** (mocked pytest on PR + `docker build`). Then evals (5), then AKS (6).  
+Details: [docs/project-roadmap.md](docs/project-roadmap.md).
