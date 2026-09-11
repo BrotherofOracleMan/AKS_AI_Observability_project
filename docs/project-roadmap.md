@@ -108,14 +108,13 @@ Mark `[x]` as you finish. Readings: **Known** = refresher; **New** = focus.
 
 - [x] `Dockerfile` + `.dockerignore` + `requirements.txt`
 - [x] Local `docker run --env-file` smoke (`/health` + chat)
-- [x] Push to ACR (lab used admin login; clean up Entra in Phase 6)
 
-**Done when:** containerized proxy works with env-injected Azure config.
+**Done when:** containerized proxy works locally with env-injected Azure config.  
+**Not in this phase:** push to ACR — that moves to **Phase 6** (AKS needs a registry; Kind uses `kind load`).
 
 | Reading | Status |
 |---------|--------|
 | [Docker overview](https://docs.docker.com/get-started/docker-overview/) | Known |
-| [ACR intro](https://learn.microsoft.com/azure/container-registry/container-registry-intro) | Known |
 
 **Mental model (revisit at Interview polish):** image = blueprint; container = running instance; shares host kernel (lighter than a VM).
 
@@ -147,7 +146,7 @@ See [deployments/k8/README.md](../deployments/k8/README.md).
 **Learn:** merge gates; build the same image without needing AKS.
 
 - [ ] GitHub Actions on PR/push: pytest **mocked only** (`-m "not live"` or `tests/test_mock.py`)
-- [ ] `docker build` in CI (push to ACR optional)
+- [ ] `docker build` in CI (no registry push)
 - [ ] Failed tests block the pipeline
 
 **Done when:** CI runs mocked tests + builds an image; red tests fail the workflow.
@@ -181,9 +180,10 @@ See [deployments/k8/README.md](../deployments/k8/README.md).
 
 **Learn:** managed K8s via IaC; reuse Kind manifests; cost hygiene. Needs a **registry** (ACR) — AKS cannot see your laptop Docker daemon.
 
+- [ ] Push image to ACR (`docker tag` + `docker push`); fix Entra / `AcrPush` (prefer not relying on admin password)
 - [ ] Terraform in `infra/`: RG + small AKS (cheap SKU; destroy when idle)
 - [ ] `terraform apply` → kubeconfig; apply same `deployments/k8/` (ACR image; drop `imagePullPolicy: Never`)
-- [ ] Fix ACR Entra / `AcrPush` (stop relying on admin password if possible)
+- [ ] Attach ACR ↔ AKS pull auth
 - [ ] Ingress **or** LoadBalancer **or** port-forward for demo
 - [ ] `docs/runbook.md` create/destroy + cost notes
 - [ ] Reuse `./probe_smoke.sh` / live tests against the AKS URL or tunnel
@@ -192,6 +192,7 @@ See [deployments/k8/README.md](../deployments/k8/README.md).
 
 | Reading | Status |
 |---------|--------|
+| [ACR intro](https://learn.microsoft.com/azure/container-registry/container-registry-intro) | Known |
 | [AKS + Terraform](https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-terraform) | New |
 | [ACR + AKS auth](https://learn.microsoft.com/azure/aks/cluster-container-registry-integration) | New |
 | [AKS cost best practices](https://learn.microsoft.com/azure/aks/best-practices-cost) | New |
@@ -264,10 +265,10 @@ Destroy AKS when not demoing — node pools dominate cost.
 |-------|--------|-------|
 | 0 — Skeleton | **Done** | Local API + pytest |
 | 1 — Azure OpenAI | **Done** | Live chat + mocks |
-| 2 — Docker | **Done** | Image + ACR push |
+| 2 — Docker | **Done** | Local image + `docker run` smoke (ACR push → Phase 6) |
 | 3 — Kind | **Done** | Manifests + `./probe_smoke.sh` |
-| 4 — Thin CI | **Next** | Mocked pytest + `docker build` |
+| 4 — Thin CI | **Next** | Mocked pytest + `docker build` (no ACR) |
 | 5 — Thin evals | Not started | After CI |
-| 6 — AKS + Terraform | Not started | After evals |
+| 6 — AKS + Terraform | Not started | ACR push + AKS pull + Terraform |
 | Interview polish | Later | After Phase 6 |
 | Deferred | Later | [deferred-phases.md](deferred-phases.md) |
