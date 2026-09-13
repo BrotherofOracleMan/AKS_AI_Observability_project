@@ -84,6 +84,7 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–3 done** (API → Azure OpenAI → Docker → Kind + `./probe_smoke.sh`).  
-**Next: Phase 4 — Thin CI** (mocked pytest on PR + `docker build`). Then evals (5), then AKS (6).  
+Phases **0–4 done** (API → Azure OpenAI → Docker → Kind smoke → GitHub Actions CI).  
+**Next: Phase 5 — Thin evals** (prompts with clear answers → `contains` / `not_contains` → fail CI if score drops). Then AKS (6).  
+Latest green CI: [Actions run](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875).  
 Details: [docs/project-roadmap.md](docs/project-roadmap.md).

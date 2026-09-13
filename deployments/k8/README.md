@@ -1,6 +1,6 @@
 # Kind manifests — learning guide
 
-**Status (Sep 2026):** Phase 3 **done** — Kind cluster, manifests, drills, `/health` + `/v1/chat` via port-forward, smoke via `./probe_smoke.sh`. **Next:** Phase 4 thin CI (see [project-roadmap.md](../../docs/project-roadmap.md)).
+**Status (Sep 2026):** Phase 3 **done** — Kind cluster, manifests, drills, `/health` + `/v1/chat` via port-forward, smoke via `./probe_smoke.sh`. Phase 4 CI **done**. **Next:** Phase 5 thin evals (see [project-roadmap.md](../../docs/project-roadmap.md)).
 
 Three small files. Read top-to-bottom in this order.
 
@@ -168,7 +168,8 @@ docker exec kind-control-plane crictl images | grep ai-on-kubernetes
 
 **Then SDET (roadmap Tier 1):**
 
-3. **Phase 4 — Thin CI** — GitHub Actions: mocked pytest on PR + build image.
-4. Then Phase 5 evals; Phase 6 AKS.
+3. [x] **Phase 4 — Thin CI** — mocked pytest + docker build on GitHub Actions.
+4. **Phase 5 — Thin evals** — clear-answer golden prompts + contains/not_contains CI gate.
+5. Then Phase 6 AKS.
 
 See [docs/project-roadmap.md](../../docs/project-roadmap.md).

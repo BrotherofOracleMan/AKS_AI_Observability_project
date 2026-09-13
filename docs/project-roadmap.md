@@ -10,7 +10,7 @@ Learning-focused guide. Hero skills: **Docker + Kubernetes + AI**. Heavy observa
                                                     deferred (identity, RAG, GitOps, Go)
 ```
 
-**You are here:** Phase **4 — Thin CI** (Phases 0–3 done).
+**You are here:** Phase **5 — Thin evals** (Phases 0–4 done).
 
 ---
 
@@ -48,7 +48,7 @@ ai-on-kubernetes/
   docs/deferred-phases.md
   docs/runbook.md           # Phase 6 — AKS create/destroy
   src/                      # FastAPI app
-  tests/                    # test_mock.py, test_smoke.py, evals/ (Phase 5)
+  tests/                    # test_mock.py, test_smoke.py, test_evals.py (Phase 5)
   deployments/k8/           # Kind + AKS manifests
   infra/                    # Terraform (Phase 6)
   .github/workflows/        # Phase 4
@@ -141,15 +141,17 @@ See [deployments/k8/README.md](../deployments/k8/README.md).
 
 ---
 
-### Phase 4 — Thin CI ← **you are here**
+### Phase 4 — Thin CI ✅
 
 **Learn:** merge gates; build the same image without needing AKS.
 
-- [ ] GitHub Actions on PR/push: pytest **mocked only** (`-m "not live"` or `tests/test_mock.py`)
-- [ ] `docker build` in CI (no registry push)
-- [ ] Failed tests block the pipeline
+- [x] GitHub Actions on PR/push: pytest **mocked only** (`tests/test_mock.py` via `mock_test.yml`)
+- [x] `docker build` in CI (`push: false`, tag `ai-on-kubernetes:ci` — no ACR)
+- [x] Failed tests block the pipeline (`needs: test`; verified: failing mock run skipped build)
 
-**Done when:** CI runs mocked tests + builds an image; red tests fail the workflow.
+**Done when:** CI runs mocked tests + builds an image; red tests fail the workflow. ✅  
+
+Verified green run: [Actions #34544850875](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875) (`test / test` + `build`).
 
 **Does not require AKS.** Live Kind smoke stays local (`./probe_smoke.sh`).
 
@@ -159,20 +161,51 @@ See [deployments/k8/README.md](../deployments/k8/README.md).
 
 ---
 
-### Phase 5 — Thin evals (quality gate)
+### Phase 5 — Thin evals (quality gate) ← **you are here**
 
-**Learn:** golden prompts; fail CI on quality drop (after CI exists so the gate has somewhere to run).
+**Learn:** regression-test **known answers**, not open-ended creativity. Fail CI when reply quality drops.
 
-- [ ] `tests/evals/golden_cases.json` (15–30 cases)
-- [ ] Simple scorers (contains / not_contains)
-- [ ] CI job (nightly or on main) — mocked or cheap; no surprise spend
-- [ ] Fail if score < baseline; document flake policy
+**What this is:** ask prompts with clear expected answers → check the model reply for required / forbidden phrases → fail the pipeline if too many miss.
+
+**What this is not:** Azure AI Foundry multi-evaluator suites (relevance, groundedness, etc.). Those are optional later; this phase stays thin.
+
+```text
+parametrized cases  →  get completion.text (mocked / fixed reply in CI)
+                    →  contains / not_contains
+                    →  CI green / red
+```
+
+**Checklist:**
+
+- [ ] `tests/test_evals.py` (or `tests/evals/test_evals.py`) with `@pytest.mark.parametrize` over a small in-file case list (5–10 to start; JSON optional later if the list gets noisy)
+- [ ] Each case: `id`, `messages`, `must_contain`, `must_not_contain`
+- [ ] Scorers: every `must_contain` appears in reply text; no `must_not_contain` appears (case-insensitive OK)
+- [ ] Default CI path uses **mocked / fixed replies** (no Azure token spend)
+- [ ] Wire evals into CI (same pipeline or dedicated job) so a failure blocks / shows red
+- [ ] Prove the gate: one intentional bad case or broken expectation fails CI; one-line README note
+
+**Example (inline case shape):**
+
+```python
+{"id": "capital-france",
+ "messages": [{"role": "user", "content": "What is the capital of France?"}],
+ "must_contain": ["Paris"],
+ "must_not_contain": ["London"]}
+```
+
+**Vs tests you already have:**
+
+| Layer | Proves |
+|-------|--------|
+| `test_mock.py` | API wiring; Azure mocked |
+| `test_smoke.py` / `./probe_smoke.sh` | Deployed system works |
+| **evals** | Answer *content* didn’t regress |
 
 **Done when:** one intentional regression fails CI; README explains the gate.
 
 | Reading | Status |
 |---------|--------|
-| [Eval approach for generative AI](https://learn.microsoft.com/azure/ai-foundry/concepts/evaluation-approach-gen-ai) | New |
+| [Eval approach for generative AI](https://learn.microsoft.com/azure/ai-foundry/concepts/evaluation-approach-gen-ai) | Skim for vocabulary only — implement thin scorers, not full Foundry evaluators |
 
 ---
 
@@ -218,10 +251,9 @@ Keyless identity → [deferred-phases.md](deferred-phases.md) (after this phase)
 
 | When | Phase |
 |------|--------|
-| Done | 0–3 |
-| **Now** | **4 — Thin CI** |
-| Next | 5 — Evals |
-| Then | 6 — AKS + Terraform |
+| Done | 0–4 |
+| **Now** | **5 — Evals** |
+| Next | 6 — AKS + Terraform |
 | Then | Interview polish |
 | Later | [deferred-phases.md](deferred-phases.md) |
 
@@ -244,8 +276,8 @@ Destroy AKS when not demoing — node pools dominate cost.
 
 1. ✅ Automated API tests — mocked Azure OpenAI (no token spend in default pytest).
 2. ✅ Kind post-deploy smoke — `./probe_smoke.sh` / `pytest -m live`.
-3. [ ] CI on every PR — pytest gates merge; builds container image.
-4. [ ] LLM eval gate — golden prompts; pipeline fails on quality regression.
+3. ✅ CI on every PR/push — pytest gates merge; builds container image (no ACR).
+4. [ ] LLM eval gate — golden prompts with clear answers; `contains` / `not_contains`; pipeline fails on quality regression.
 5. [ ] Same manifests on AKS via Terraform; destroy when idle.
 
 ---
@@ -267,8 +299,8 @@ Destroy AKS when not demoing — node pools dominate cost.
 | 1 — Azure OpenAI | **Done** | Live chat + mocks |
 | 2 — Docker | **Done** | Local image + `docker run` smoke (ACR push → Phase 6) |
 | 3 — Kind | **Done** | Manifests + `./probe_smoke.sh` |
-| 4 — Thin CI | **Next** | Mocked pytest + `docker build` (no ACR) |
-| 5 — Thin evals | Not started | After CI |
+| 4 — Thin CI | **Done** | Mocked pytest + `docker build` ([green run](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875)) |
+| 5 — Thin evals | **Next** | Parametrized clear-answer cases + contains/not_contains (JSON optional) |
 | 6 — AKS + Terraform | Not started | ACR push + AKS pull + Terraform |
 | Interview polish | Later | After Phase 6 |
 | Deferred | Later | [deferred-phases.md](deferred-phases.md) |
