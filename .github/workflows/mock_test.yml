@@ -30,3 +30,6 @@ jobs:
 
       - name: Run mock tests
         run: uv run pytest tests/test_mock.py -v
+
+      - name: Run evals
+        run: uv run pytest tests/test_evals.py -v

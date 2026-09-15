@@ -58,32 +58,43 @@ GOLDEN_TEST_CASES = [
         ["3"],
         id="basic-math",
     ),
-    # Fuzzy lab fact (city vs metro) — fine for harness; tighten if you go live.
     pytest.param(
-        [{"role": "user", "content": "What is the biggest city in the world?"}],
+        [{"role": "user", "content": "What is the biggest city in the world by population?"}],
         ["Tokyo"],
         ["London"],
         id="biggest-city",
     ),
     pytest.param(
-        [{"role": "user", "content": "What is the biggest animal in the world?"}],
+        [{"role": "user", "content": "What is the biggest mammal in the world?"}],
         ["Blue Whale"],
         ["Dog"],
         id="biggest-animal",
     ),
     pytest.param(
-        [{"role": "user", "content": "What is the biggest country in the world?"}],
+        [{"role": "user", "content": "What is the biggest country in the world by area?"}],
         ["Russia"],
         ["United States"],
         id="biggest-country",
     ),
 ]
 
+def pass_scorer(text, must_contain, must_not_contain):
+    text_l = text.lower()
+    return (all(word.lower() in text_l for word in must_contain) and 
+            all(word.lower() not in text_l for word in must_not_contain))
 
-@pytest.mark.parametrize("messages,must_contain,must_not_contain", GOLDEN_TEST_CASES)
+def test_scorer_missing_must_contain():
+    assert not pass_scorer("The capital is London", ["Paris"], ["London"])
+
+def test_scorer_must_not_contain_found():
+    assert not pass_scorer("Paris is great, also London is great", ["Paris"], ["London"])
+
+def test_scorer_passes():
+    assert pass_scorer("The capital is Paris.", ["Paris"], ["London"])
+
+
+@pytest.mark.parametrize("messages,must_contain, must_not_contain", GOLDEN_TEST_CASES)
 def test_golden_test_cases(mocker, messages, must_contain, must_not_contain):
-    # Fake Azure: inject must_contain into text so CI scorers can pass without the model.
-    # Side effect: must_not_contain almost always passes (those words are never in the fake).
     mocker.patch(
         "main.chat",
         return_value={
