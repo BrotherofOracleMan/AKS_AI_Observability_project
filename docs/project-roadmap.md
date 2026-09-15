@@ -10,7 +10,7 @@ Learning-focused guide. Hero skills: **Docker + Kubernetes + AI**. Heavy observa
                                                     deferred (identity, RAG, GitOps, Go)
 ```
 
-**You are here:** Phase **5 — Thin evals** (Phases 0–4 done).
+**You are here:** Phase **6 — AKS + Terraform** (Phases 0–5 thin done; live eval scoring optional).
 
 ---
 
@@ -161,51 +161,46 @@ Verified green run: [Actions #34544850875](https://github.com/BrotherofOracleMan
 
 ---
 
-### Phase 5 — Thin evals (quality gate) ← **you are here**
+### Phase 5 — Thin evals (quality gate) ✅
 
-**Learn:** regression-test **known answers**, not open-ended creativity. Fail CI when reply quality drops.
+**Learn:** regression-test **known answers**, not open-ended creativity. Fail CI when scorers reject bad text.
 
-**What this is:** ask prompts with clear expected answers → check the model reply for required / forbidden phrases → fail the pipeline if too many miss.
+**What this is:** clear-answer prompts → `contains` / `not_contains` → CI.
 
-**What this is not:** Azure AI Foundry multi-evaluator suites (relevance, groundedness, etc.). Those are optional later; this phase stays thin.
+**What this is not:** Azure AI Foundry multi-evaluators. Live model grading is optional later.
 
 ```text
-parametrized cases  →  get completion.text (mocked / fixed reply in CI)
-                    →  contains / not_contains
-                    →  CI green / red
+parametrized cases  →  mocked /v1/chat reply
+                    →  pass_scorer (contains / not_contains)
+                    →  CI (mock_test.yml)
+gate proofs         →  pass_scorer(bad text) must be False
 ```
 
 **Checklist:**
 
-- [ ] `tests/test_evals.py` (or `tests/evals/test_evals.py`) with `@pytest.mark.parametrize` over a small in-file case list (5–10 to start; JSON optional later if the list gets noisy)
-- [ ] Each case: `id`, `messages`, `must_contain`, `must_not_contain`
-- [ ] Scorers: every `must_contain` appears in reply text; no `must_not_contain` appears (case-insensitive OK)
-- [ ] Default CI path uses **mocked / fixed replies** (no Azure token spend)
-- [ ] Wire evals into CI (same pipeline or dedicated job) so a failure blocks / shows red
-- [ ] Prove the gate: one intentional bad case or broken expectation fails CI; one-line README note
+- [x] `tests/test_evals.py` with `@pytest.mark.parametrize` (inline cases)
+- [x] Cases: slug `id`, `messages`, `must_contain`, `must_not_contain` (tightened prompts)
+- [x] Shared `pass_scorer()` (case-insensitive)
+- [x] Gate proofs: missing required / forbidden present / happy path
+- [x] Mocked Azure path via `TestClient` (no token spend)
+- [x] Wired into CI (`mock_test.yml` runs `tests/test_evals.py`)
+- [x] README note: harness vs live
+- [ ] Optional: `@pytest.mark.live` to score real model text
 
-**Example (inline case shape):**
-
-```python
-{"id": "capital-france",
- "messages": [{"role": "user", "content": "What is the capital of France?"}],
- "must_contain": ["Paris"],
- "must_not_contain": ["London"]}
-```
-
-**Vs tests you already have:**
+**Vs other tests:**
 
 | Layer | Proves |
 |-------|--------|
-| `test_mock.py` | API wiring; Azure mocked |
-| `test_smoke.py` / `./probe_smoke.sh` | Deployed system works |
-| **evals** | Answer *content* didn’t regress |
+| `test_mock.py` | API wiring |
+| `test_smoke.py` / `./probe_smoke.sh` | Deployed system |
+| `test_evals.py` | Scorers + golden harness (mocked) |
+| live evals (optional) | Real answer quality |
 
-**Done when:** one intentional regression fails CI; README explains the gate.
+**Done when (thin):** harness + gate proofs in CI + README. ✅
 
 | Reading | Status |
 |---------|--------|
-| [Eval approach for generative AI](https://learn.microsoft.com/azure/ai-foundry/concepts/evaluation-approach-gen-ai) | Skim for vocabulary only — implement thin scorers, not full Foundry evaluators |
+| [Eval approach for generative AI](https://learn.microsoft.com/azure/ai-foundry/concepts/evaluation-approach-gen-ai) | Skim vocabulary only |
 
 ---
 
@@ -251,11 +246,10 @@ Keyless identity → [deferred-phases.md](deferred-phases.md) (after this phase)
 
 | When | Phase |
 |------|--------|
-| Done | 0–4 |
-| **Now** | **5 — Evals** |
-| Next | 6 — AKS + Terraform |
+| Done | 0–5 (thin) |
+| **Now** | **6 — AKS + Terraform** |
 | Then | Interview polish |
-| Later | [deferred-phases.md](deferred-phases.md) |
+| Later | [deferred-phases.md](deferred-phases.md) (incl. optional live evals) |
 
 Destroy AKS when not demoing — node pools dominate cost.
 
@@ -277,7 +271,7 @@ Destroy AKS when not demoing — node pools dominate cost.
 1. ✅ Automated API tests — mocked Azure OpenAI (no token spend in default pytest).
 2. ✅ Kind post-deploy smoke — `./probe_smoke.sh` / `pytest -m live`.
 3. ✅ CI on every PR/push — pytest gates merge; builds container image (no ACR).
-4. [ ] LLM eval gate — golden prompts with clear answers; `contains` / `not_contains`; pipeline fails on quality regression.
+4. ✅ LLM eval gate (thin) — `pass_scorer` + golden harness + CI; live model scoring optional.
 5. [ ] Same manifests on AKS via Terraform; destroy when idle.
 
 ---
@@ -300,7 +294,7 @@ Destroy AKS when not demoing — node pools dominate cost.
 | 2 — Docker | **Done** | Local image + `docker run` smoke (ACR push → Phase 6) |
 | 3 — Kind | **Done** | Manifests + `./probe_smoke.sh` |
 | 4 — Thin CI | **Done** | Mocked pytest + `docker build` ([green run](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875)) |
-| 5 — Thin evals | **Next** | Parametrized clear-answer cases + contains/not_contains (JSON optional) |
+| 5 — Thin evals | **Done (thin)** | `pass_scorer` + gate proofs + CI; live scoring optional |
 | 6 — AKS + Terraform | Not started | ACR push + AKS pull + Terraform |
 | Interview polish | Later | After Phase 6 |
 | Deferred | Later | [deferred-phases.md](deferred-phases.md) |

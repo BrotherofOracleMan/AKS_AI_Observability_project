@@ -76,6 +76,8 @@ uv run pytest -v
 
 Tests mock `main.chat` so CI does not call Azure / spend tokens.
 
+**Evals:** `tests/test_evals.py` — golden prompts + `pass_scorer` (contains / not_contains), including tests that scorers **fail** on bad text. Default CI is mocked (harness), not live model grading. Kind smoke: `tests/test_smoke.py` / `./probe_smoke.sh`.
+
 Layout: `src/main.py`, `config.py`, `openai_client.py`, `models.py`. Never commit `.env`.
 
 ## Path (summary)
@@ -84,7 +86,6 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–4 done** (API → Azure OpenAI → Docker → Kind smoke → GitHub Actions CI).  
-**Next: Phase 5 — Thin evals** (prompts with clear answers → `contains` / `not_contains` → fail CI if score drops). Then AKS (6).  
-Latest green CI: [Actions run](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875).  
+Phases **0–5 thin done**.  
+**Next: Phase 6 — AKS + Terraform** (ACR + same manifests).  
 Details: [docs/project-roadmap.md](docs/project-roadmap.md).
