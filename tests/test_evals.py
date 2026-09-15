@@ -6,6 +6,8 @@ Harness for CI — does not grade the live model. Optional later: @pytest.mark.l
 import pytest
 from fastapi.testclient import TestClient
 from main import app
+import httpx
+from config import config
 
 client = TestClient(app)
 
@@ -95,3 +97,14 @@ def test_golden_test_cases(mocker, messages, must_contain, must_not_contain):
         response_json["completion"]["text"], must_contain, must_not_contain
     )
     assert "completion" in response_json
+
+@pytest.mark.live
+@pytest.mark.parametrize("messages,must_contain,must_not_contain", GOLDEN_TEST_CASES)
+def test_golden_test_cases_live(messages, must_contain, must_not_contain):
+
+    r = httpx.post(f"{config.base_url}/v1/chat", json={"messages": messages}, timeout=30)
+    print(r.json())
+    assert r.status_code == 200
+    assert pass_scorer(
+        r.json()["completion"]["text"], must_contain, must_not_contain
+    )

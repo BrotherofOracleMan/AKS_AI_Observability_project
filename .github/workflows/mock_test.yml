@@ -32,4 +32,4 @@ jobs:
         run: uv run pytest tests/test_mock.py -v
 
       - name: Run evals
-        run: uv run pytest tests/test_evals.py -v
+        run: uv run pytest tests/ -m "not live" -v
