@@ -76,7 +76,7 @@ uv run pytest -v
 
 Tests mock `main.chat` so CI does not call Azure / spend tokens.
 
-**Evals:** `tests/test_evals.py` — golden prompts + `pass_scorer` (contains / not_contains), including tests that scorers **fail** on bad text. Default CI is mocked (harness), not live model grading. Kind smoke: `tests/test_smoke.py` / `./probe_smoke.sh`.
+**Evals:** `tests/test_evals.py` — `pass_scorer` + mocked golden cases in CI (`-m "not live"`). Live grading: `pytest tests/test_evals.py -m live` (needs port-forward / `BASE_URL`). Smoke: `tests/test_smoke.py` / `./probe_smoke.sh`.
 
 Layout: `src/main.py`, `config.py`, `openai_client.py`, `models.py`. Never commit `.env`.
 
@@ -86,6 +86,6 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–5 thin done**.  
+Phases **0–5 done** (including live golden evals via `-m live`).  
 **Next: Phase 6 — AKS + Terraform** (ACR + same manifests).  
 Details: [docs/project-roadmap.md](docs/project-roadmap.md).
