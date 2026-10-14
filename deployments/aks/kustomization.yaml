@@ -3,7 +3,7 @@ resources:
 
 images:
     - name: ai-on-kubernetes
-      newName: aionk8sacrn48zov.azurecr.io/ai-on-kubernetes
+      newName: <REGISTRY>/ai-on-kubernetes
       newTag: v1
 
 patches:

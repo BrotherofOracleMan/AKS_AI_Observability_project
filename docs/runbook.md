@@ -61,7 +61,7 @@ docker push $LOGIN/ai-on-kubernetes:v1
 
 ## 4. Point the AKS overlay at the new ACR
 
-Edit `newName` in `deployments/aks/kustomization.yaml` to `<LOGIN>/ai-on-kubernetes`, then check:
+The committed overlay has a placeholder: `newName: <REGISTRY>/ai-on-kubernetes`. Replace `<REGISTRY>` with `$LOGIN` locally (don't commit the real name — it changes every recreate), then check:
 
 ```bash
 echo $LOGIN
@@ -190,6 +190,7 @@ Paired `GET /health 200` lines every few seconds are the liveness + readiness pr
 
 | Symptom | Fix |
 |---------|-----|
+| `InvalidImageName` | Overlay still has the `<REGISTRY>` placeholder → step 4 |
 | `ImagePullBackOff` | Overlay `newName` still points at an old ACR, or tag not pushed → steps 3–4 |
 | `CrashLoopBackOff` + `exec format error` | arm64 image → rebuild with `--platform linux/amd64` |
 | `CrashLoopBackOff` + pydantic `ValidationError` | Secret missing a key → fix `secret.yaml`, re-apply, `kubectl rollout restart deploy/ai-on-kubernetes` |

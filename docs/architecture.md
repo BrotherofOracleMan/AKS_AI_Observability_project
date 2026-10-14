@@ -143,7 +143,7 @@ Two different kinds of "why". **Decisions** we chose and can defend ("I chose X 
 | B-series VMs blocked | `NotAvailableForSubscription` / `InsufficientVCPUQuota` | Subscription limits; AKS also disallows B-series for system pools | `Standard_D2als_v7` (check with `az vm list-skus` / `list-usage`) |
 | azurerm 4.x needs a subscription | `subscription ID could not be determined` | Provider no longer infers it | `export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)` |
 | Apple Silicon builds arm64 | `exec format error` → `CrashLoopBackOff` | AKS node is x86 | `docker build --platform linux/amd64` |
-| ACR name changes every recreate | `ImagePullBackOff` after a rebuild | Random suffix in Terraform | Re-tag + push, update overlay `newName` |
+| ACR name changes every recreate | `ImagePullBackOff` after a rebuild | Random suffix in Terraform | Re-tag + push; replace `<REGISTRY>` in the overlay locally (committed version keeps the placeholder) |
 | `BASE_URL` required in the pod | `ValidationError` → `CrashLoopBackOff` | Required pydantic field; app never uses it (tests do); no `.env` in the image | Add it to the Secret (or give it a default) |
 | `kubectl apply -f <folder>` fails | `kind not set` / `name not set` | `-f` treats `kustomization.yaml` as a K8s object | `-k` for kustomize folders |
 | `kubectl logs app=...` fails | `NotFound` pod named `app=...` | Missing `-l`, so it's read as a pod name | `-l app=ai-on-kubernetes` |
