@@ -39,6 +39,6 @@ variable "node_count" {
 # Nit: overridable if Standard_B2s is unavailable in your region/quota
 variable "vm_size" {
   type        = string
-  description = "Node VM SKU (override if Standard_B2s unavailable in your region/quota)"
-  default     = "Standard_B2s"
+  description = "Node VM SKU (cheapest eastus SKU that is AKS-allowed and has vCPU quota on this subscription)"
+  default     = "Standard_D2als_v7"
 }

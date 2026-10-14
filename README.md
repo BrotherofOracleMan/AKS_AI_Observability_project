@@ -86,6 +86,11 @@ Same as [What this project is](#what-this-project-is). Details and checklists: [
 
 ## Status
 
-Phases **0–5 done** (including live golden evals via `-m live`).  
-**Next: Phase 6 — AKS + Terraform** (ACR + same manifests).  
-Details: [docs/project-roadmap.md](docs/project-roadmap.md).
+Phases **0–6 done** — the same image ran on Kind and on AKS (Terraform + ACR + Kustomize overlay), with smoke + live evals passing on both. AKS is destroyed when idle.
+
+| Doc | What's in it |
+|-----|--------------|
+| [docs/architecture.md](docs/architecture.md) | How it fits together, why a proxy, Kind vs AKS, K8s networking + secrets, how to explain it |
+| [docs/runbook.md](docs/runbook.md) | AKS create → deploy → test → destroy, kubectl reference, debugging |
+| [docs/project-roadmap.md](docs/project-roadmap.md) | Phase checklists |
+| [docs/deferred-phases.md](docs/deferred-phases.md) | Optional next steps (API auth, Workload Identity, RAG, GitOps) |

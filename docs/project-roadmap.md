@@ -5,12 +5,12 @@ Learning-focused guide. Hero skills: **Docker + Kubernetes + AI**. Heavy observa
 **One sequence — do not skip ahead or jump around.** Finish each phase’s “Done when” before the next.
 
 ```text
-0 Skeleton → 1 Azure OpenAI → 2 Docker → 3 Kind → 4 CI → 5 Evals → 6 AKS → Interview polish
+0 Skeleton → 1 Azure OpenAI → 2 Docker → 3 Kind → 4 CI → 5 Evals → 6 AKS
                                                               ↓
                                                     deferred (identity, RAG, GitOps, Go)
 ```
 
-**You are here:** Phase **6 — AKS + Terraform** (Phases 0–5 done, including live golden evals locally).
+**Status:** Phases **0–6 done**. Architecture + how to explain it: [architecture.md](architecture.md). AKS commands: [runbook.md](runbook.md). Optional next steps: [deferred-phases.md](deferred-phases.md).
 
 ---
 
@@ -24,6 +24,8 @@ Client  -->  FastAPI (container on K8s)  -->  Azure OpenAI
          Docker image + K8s manifests
          (Kind first → CI/evals → AKS)
 ```
+
+The model runs in Azure OpenAI (Microsoft's hardware); we build and run the proxy layer. Full picture: [architecture.md](architecture.md).
 
 **Interview one-liner:** “I automated quality for an AI API — mocked pytest in CI, Kind smoke tests, golden-prompt evals, then the same image on AKS with Terraform.”
 
@@ -45,11 +47,13 @@ Deferred (after Phase 6): Workload Identity, thin RAG, GitOps, optional Go — [
 ai-on-kubernetes/
   README.md
   docs/project-roadmap.md   # this file
+  docs/architecture.md      # design, K8s concepts, how to explain it
   docs/deferred-phases.md
-  docs/runbook.md           # Phase 6 — AKS create/destroy
+  docs/runbook.md           # AKS create → deploy → test → destroy
   src/                      # FastAPI app
   tests/                    # test_mock.py, test_smoke.py, test_evals.py (Phase 5)
-  deployments/k8/           # Kind + AKS manifests
+  deployments/k8/           # Kind manifests + Kustomize base
+  deployments/aks/          # Kustomize overlay for AKS (ACR image)
   infra/                    # Terraform (Phase 6)
   .github/workflows/        # Phase 4
   probe_smoke.sh            # Kind live smoke
@@ -116,7 +120,7 @@ Mark `[x]` as you finish. Readings: **Known** = refresher; **New** = focus.
 |---------|--------|
 | [Docker overview](https://docs.docker.com/get-started/docker-overview/) | Known |
 
-**Mental model (revisit at Interview polish):** image = blueprint; container = running instance; shares host kernel (lighter than a VM).
+**Mental model:** image = blueprint; container = running instance; shares host kernel (lighter than a VM). More: [architecture.md](architecture.md#image-vs-container-vs-vm).
 
 ---
 
@@ -203,19 +207,21 @@ gate proofs         →  pass_scorer(bad text) must be False
 
 ---
 
-### Phase 6 — AKS + Terraform
+### Phase 6 — AKS + Terraform ✅
 
 **Learn:** managed K8s via IaC; reuse Kind manifests; cost hygiene. Needs a **registry** (ACR) — AKS cannot see your laptop Docker daemon.
 
-- [ ] Push image to ACR (`docker tag` + `docker push`); fix Entra / `AcrPush` (prefer not relying on admin password)
-- [ ] Terraform in `infra/`: RG + small AKS (cheap SKU; destroy when idle)
-- [ ] `terraform apply` → kubeconfig; apply same `deployments/k8/` (ACR image; drop `imagePullPolicy: Never`)
-- [ ] Attach ACR ↔ AKS pull auth
-- [ ] Ingress **or** LoadBalancer **or** port-forward for demo
-- [ ] `docs/runbook.md` create/destroy + cost notes
-- [ ] Reuse `./probe_smoke.sh` / live tests against the AKS URL or tunnel
+Commands: [runbook.md](runbook.md).
 
-**Done when:** chat works on AKS; `terraform destroy` practiced.
+- [x] Push image to ACR (`docker tag` + `docker push`); fix Entra / `AcrPush` (prefer not relying on admin password)
+- [x] Terraform in `infra/`: RG + small AKS (cheap SKU; destroy when idle)
+- [x] `terraform apply` → kubeconfig; apply same base manifests via Kustomize overlay `deployments/aks/` (ACR image; `imagePullPolicy: IfNotPresent`)
+- [x] Attach ACR ↔ AKS pull auth
+- [x] Port-forward for demo (public LoadBalancer deferred until API auth — [deferred-phases.md](deferred-phases.md#public-exposure--api-auth))
+- [x] `docs/runbook.md` create/destroy + cost notes
+- [x] Reuse `./probe_smoke.sh` / live tests against the AKS tunnel
+
+**Done when:** chat works on AKS; `terraform destroy` practiced. ✅
 
 | Reading | Status |
 |---------|--------|
@@ -228,27 +234,12 @@ Keyless identity → [deferred-phases.md](deferred-phases.md) (after this phase)
 
 ---
 
-### Interview polish (after Phase 6)
-
-- [ ] Recruiter pitch: image vs container vs VM (~1 min)
-- [ ] Walk the demo script once without notes
-- [ ] Refresh README status + 3–5 resume bullets
-- [ ] Optional: `docs/architecture.md`
-
-**Pitch:**
-
-> “A container packages my app and its dependencies so it runs the same way on my laptop, in CI, and on Kubernetes. It’s lighter than a VM because it shares the host OS kernel. An image is the blueprint; a container is a running instance. I put an LLM proxy in an image, inject Azure secrets at runtime, and run that same image on Kind and AKS.”
-
----
-
 ## Pace (same order as phases)
 
 | When | Phase |
 |------|--------|
-| Done | 0–5 |
-| **Now** | **6 — AKS + Terraform** |
-| Then | Interview polish |
-| Later | [deferred-phases.md](deferred-phases.md) |
+| Done | 0–6 |
+| Optional | [deferred-phases.md](deferred-phases.md) |
 
 Destroy AKS when not demoing — node pools dominate cost.
 
@@ -256,12 +247,14 @@ Destroy AKS when not demoing — node pools dominate cost.
 
 ## Demo script (interviews)
 
-1. Architecture: client → container on K8s → Azure OpenAI (30s)
-2. Dockerfile + `deployments/k8/` (+ `infra/` after Phase 6)
-3. Kind (or AKS): `/health` + `/v1/chat`; `./probe_smoke.sh`
+Run the live part on **Kind** (free, instant); talk through AKS. Full talk track, commands, and likely follow-up questions: [architecture.md](architecture.md#talking-about-it).
+
+1. Architecture: client → proxy container on K8s → Azure OpenAI (30s)
+2. Dockerfile + `deployments/k8/` + `deployments/aks/` overlay + `infra/`
+3. Kind: port-forward → `/health` + `/v1/chat`; `./probe_smoke.sh`; live evals
 4. `kubectl get pods` / logs
-5. CI: mocked pytest + image build (+ eval gate after Phase 5)
-6. After Phase 6: `terraform destroy` cost note
+5. CI: mocked pytest + eval harness + image build
+6. AKS: same image + base manifests via Terraform; `terraform destroy` cost note
 
 ---
 
@@ -271,7 +264,7 @@ Destroy AKS when not demoing — node pools dominate cost.
 2. ✅ Kind post-deploy smoke — `./probe_smoke.sh` / `pytest -m live`.
 3. ✅ CI on every PR/push — pytest gates merge; builds container image (no ACR).
 4. ✅ LLM eval gate — mocked harness in CI + `@pytest.mark.live` httpx golden evals (port-forward).
-5. [ ] Same manifests on AKS via Terraform; destroy when idle.
+5. ✅ Same image + base manifests on AKS via Terraform + Kustomize overlay (ACR pull via managed identity); smoke + live evals pass; destroyed when idle.
 
 ---
 
@@ -294,6 +287,5 @@ Destroy AKS when not demoing — node pools dominate cost.
 | 3 — Kind | **Done** | Manifests + `./probe_smoke.sh` |
 | 4 — Thin CI | **Done** | Mocked pytest + `docker build` ([green run](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875)) |
 | 5 — Thin evals | **Done** | `pass_scorer` + CI (`not live`) + live httpx golden path |
-| 6 — AKS + Terraform | Not started | ACR push + AKS pull + Terraform |
-| Interview polish | Later | After Phase 6 |
+| 6 — AKS + Terraform | **Done** | ACR + AKS via Terraform, Kustomize overlay, port-forward tests; [runbook.md](runbook.md) |
 | Deferred | Later | [deferred-phases.md](deferred-phases.md) |

@@ -1,0 +1,16 @@
+resources:
+  - ../k8
+
+images:
+    - name: ai-on-kubernetes
+      newName: aionk8sacrn48zov.azurecr.io/ai-on-kubernetes
+      newTag: v1
+
+patches:
+  - target:
+      kind: Deployment
+      name: ai-on-kubernetes
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent

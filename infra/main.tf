@@ -37,7 +37,7 @@ resource "azurerm_container_registry" "acr" {
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
   # Lab: admin user on for easy docker login; prefer az acr login / AcrPush later
-  admin_enabled       = true
+  admin_enabled = true
 }
 
 # AKS cluster (destroy when idle — node hours dominate cost)
@@ -61,8 +61,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
 # AcrPull on kubelet identity (nodes pull images) — not cluster identity (control plane)
 resource "azurerm_role_assignment" "aks_to_acr_pull" {
-  scope                            = azurerm_container_registry.acr.id
-  role_definition_name             = "AcrPull"
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPull"
   # Nit: kubelet_identity uses object_id (cluster identity uses principal_id)
   principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
   skip_service_principal_aad_check = true

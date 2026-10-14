@@ -1,6 +1,6 @@
 # Deferred phases
 
-Optional work **after** the sequential core path (Phases **0–6**) and Interview polish. Do not start these while Phase 4–6 are open.
+Optional work **after** the sequential core path (Phases **0–6**, done).
 
 Back to main roadmap: [project-roadmap.md](project-roadmap.md).
 
@@ -10,6 +10,7 @@ Back to main roadmap: [project-roadmap.md](project-roadmap.md).
 | **Thin RAG** | AI product QA; grounded-answer test scenarios |
 | **GitOps** | Platform/SRE-leaning SDET or infra QA |
 | **Optional Go** | Custom cluster smoke tool beyond pytest + shell |
+| **Public exposure + API auth** | You need a shareable demo URL instead of port-forward |
 
 ---
 
@@ -32,6 +33,27 @@ Back to main roadmap: [project-roadmap.md](project-roadmap.md).
 | [AKS workload identity](https://learn.microsoft.com/azure/aks/workload-identity-overview) | Pod → Entra identity | Known MI idea; **New** on AKS |
 | [OpenAI + Managed Identity](https://learn.microsoft.com/azure/ai-services/openai/how-to/managed-identity) | Keyless calls to the model | New |
 | [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) | Optional egress lock-down | New |
+
+---
+
+## Public exposure + API auth
+
+**Learn:** protect an LLM proxy before giving it a public IP.
+
+**Why:** Deferred from Phase 6. `/v1/chat` has no auth, so a public LoadBalancer lets anyone who finds the IP spend Azure OpenAI tokens. Phase 6 uses `kubectl port-forward` instead.
+
+- [ ] Add API auth to `/v1/chat` (e.g. API key header checked in the app; key from a K8s Secret); keep `/health` open for probes
+- [ ] Add basic rate limiting
+- [ ] Tests: missing/wrong key → 401; valid key → 200
+- [ ] Expose via a LoadBalancer patch in `deployments/aks/kustomization.yaml` (JSON6902 `op: add`, `path: /spec/type`, `value: LoadBalancer` on the Service) or Ingress (App Routing add-on)
+- [ ] Remove the public Service when the demo is over (public IP charge)
+
+**Done when:** the public endpoint rejects unauthenticated requests, and smoke/evals pass against it with the key.
+
+| Reading | Why | Status |
+|---------|-----|--------|
+| [AKS App Routing (managed NGINX Ingress)](https://learn.microsoft.com/azure/aks/app-routing) | The "real" way to expose HTTP on AKS | New |
+| [FastAPI security](https://fastapi.tiangolo.com/tutorial/security/) | API key / bearer auth in the app | New |
 
 ---
 
