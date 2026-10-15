@@ -60,13 +60,15 @@ Response shape (approx):
   "provider_message_id": "chatcmpl-...",
   "completion": {
     "text": "...",
-    "model": "gpt-4.1-mini",
+    "model": "gpt-4.1-mini-2025-04-14",
     "prompt_tokens": 19,
     "completion_tokens": 50,
     "total_tokens": 69
   }
 }
 ```
+
+`completion.model` is the model Azure reports answering (name + version), not the `AZURE_OPENAI_MODEL` deployment name you send.
 
 ```bash
 uv run pytest -m "not live" -v

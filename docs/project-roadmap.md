@@ -349,7 +349,7 @@ Run the live part on **Kind** (free, instant); talk through AKS. Full talk track
 
 1. ✅ Automated API tests — mocked Azure OpenAI (no token spend with `pytest -m "not live"`).
 2. ✅ Kind post-deploy smoke — `./probe_smoke.sh` / `pytest -m live`.
-3. ✅ CI on every PR/push — pytest gates merge; builds container image (no ACR).
+3. ✅ CI on every push — mocked pytest; a failure blocks the container image build (no ACR).
 4. ✅ LLM eval gate — mocked harness in CI + `@pytest.mark.live` httpx golden evals (port-forward).
 5. ✅ Same image + base manifests on AKS via Terraform + Kustomize overlay (ACR pull via managed identity); smoke + live evals pass; destroyed when idle.
 

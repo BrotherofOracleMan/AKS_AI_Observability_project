@@ -2,7 +2,7 @@
 
 These manifests are the Kind setup **and** the Kustomize base that the AKS overlay (`deployments/aks/`) builds on. AKS commands: [runbook.md](../../docs/runbook.md).
 
-Three small files. Read top-to-bottom in this order.
+Four small files. Read top-to-bottom in this order.
 
 ## 1. `secret.example.yaml` — config (secrets)
 
@@ -59,6 +59,22 @@ Flow: `client → Service:port → Pod:targetPort`. They can differ (e.g. Servic
 kubectl port-forward svc/ai-on-kubernetes 8000:8000
 curl http://localhost:8000/health
 ```
+
+---
+
+## 4. `kustomization.yaml` — what `-k` applies
+
+Lists the manifests that belong together:
+
+```yaml
+resources:
+  - deployment.yaml
+  - service.yaml
+```
+
+- `kubectl apply -k deployments/k8` applies only what's under `resources:`. `secret.yaml` is left out on purpose (gitignored, holds the key) — apply it separately with `-f`.
+- It's also the **base** for AKS: `deployments/aks/kustomization.yaml` pulls it in with `resources: - ../k8` and swaps only the image + pull policy.
+- Don't use `-f` on this folder — it treats `kustomization.yaml` as a K8s object and fails with `kind not set`.
 
 ---
 

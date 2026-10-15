@@ -17,6 +17,7 @@ def chat(request: ChatRequest) -> dict[str, str]:
 
     total_tokens = completion.usage.total_tokens
     prompt_tokens = completion.usage.prompt_tokens
+    model = completion.model
     completion_tokens = completion.usage.completion_tokens
     completion_text = completion.choices[0].message.content
     id = completion.id
@@ -25,7 +26,7 @@ def chat(request: ChatRequest) -> dict[str, str]:
         "provider_message_id": id,
         "completion": {
             "text": completion_text,
-            "model": config.azure_openai_model,
+            "model": model,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,

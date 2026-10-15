@@ -36,8 +36,7 @@ resource "azurerm_container_registry" "acr" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
-  # Lab: admin user on for easy docker login; prefer az acr login / AcrPush later
-  admin_enabled = true
+  admin_enabled = false
 }
 
 # AKS cluster (destroy when idle — node hours dominate cost)

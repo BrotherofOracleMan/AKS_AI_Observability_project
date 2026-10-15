@@ -3,10 +3,9 @@ output "acr_login_server" {
   description = "ACR login server — use for docker tag/push and Deployment image"
 }
 
-# Nit: added so az acr login / admin creds target the random-suffixed registry name
 output "acr_name" {
   value       = azurerm_container_registry.acr.name
-  description = "ACR resource name (for az acr login / admin user)"
+  description = "name of azure container registry"
 }
 
 output "aks_name" {
