@@ -1,6 +1,6 @@
 # Kind manifests — learning guide
 
-**Status (Sep 2026):** Phases 3–5 done (Kind + CI + eval harness + live golden evals). **Next:** Phase 6 AKS (see [project-roadmap.md](../../docs/project-roadmap.md)).
+These manifests are the Kind setup **and** the Kustomize base that the AKS overlay (`deployments/aks/`) builds on. AKS commands: [runbook.md](../../docs/runbook.md).
 
 Three small files. Read top-to-bottom in this order.
 
@@ -14,6 +14,7 @@ Like `.env`, but for Kubernetes.
 | `AZURE_OPENAI_API_KEY` | Auth |
 | `AZURE_OPENAI_MODEL` | Which deployment |
 | `AZURE_OPENAI_API_VERSION` | API version |
+| `BASE_URL` | Only the tests use it, but `src/config.py` requires it — missing → `CrashLoopBackOff` |
 
 ```bash
 cp secret.example.yaml secret.yaml   # secret.yaml is gitignored
@@ -90,8 +91,9 @@ cp deployments/k8/secret.example.yaml deployments/k8/secret.yaml
 docker build -t ai-on-kubernetes:local .
 kind load docker-image ai-on-kubernetes:local
 
-# 3. manifests
-kubectl apply -f deployments/k8/
+# 3. secret, then manifests (-k: the folder has a kustomization.yaml)
+kubectl apply -f deployments/k8/secret.yaml
+kubectl apply -k deployments/k8
 
 # 4. check
 kubectl get deploy,pods,svc
@@ -139,37 +141,18 @@ docker exec kind-control-plane crictl images | grep ai-on-kubernetes
 
 ## Learning drills
 
-**Original three (you already did these before the README refresh):**
-
 1. [x] Wrong Service `app:` label → apply → empty endpoints / broken forward → fix  
 2. [x] Typo the `image:` name → `describe pod` / ImagePullBackOff or ErrImageNeverPull  
-3. [x] `kubectl delete -f deployments/k8/` → re-apply  
-
-**Added later (done):**
-
+3. [x] `kubectl delete -k deployments/k8` → re-apply  
 4. [x] Break probe path → Ready 0/1 → fix  
 5. [x] Rewrite `service.yaml` (paste/modify OK) — hit duplicate `spec:` / missing selector → fix  
 
 ---
 
-## What's next (directions)
+## Smoke test
 
-**Phase 3 smoke (done):**
+With port-forward running, in another terminal:
 
-1. Start the tunnel (leave it running):
-   ```bash
-   kubectl port-forward svc/ai-on-kubernetes 8000:8000
-   ```
-2. In another terminal (venv activated):
-   ```bash
-   ./probe_smoke.sh
-   ```
-   That runs `pytest tests/test_smoke.py -v -m live` against `BASE_URL` (`http://localhost:8000`).
-
-**Then SDET (roadmap Tier 1):**
-
-3. [x] **Phase 4 — Thin CI** — mocked pytest + docker build on GitHub Actions.
-4. [x] **Phase 5 — Thin evals** — mocked CI + `@pytest.mark.live` httpx golden path.
-5. **Phase 6 — AKS** — ACR + Terraform.
-
-See [docs/project-roadmap.md](../../docs/project-roadmap.md).
+```bash
+./probe_smoke.sh   # pytest tests/test_smoke.py -m live against BASE_URL
+```

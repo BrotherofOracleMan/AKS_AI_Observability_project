@@ -26,7 +26,7 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 | CI / quality | Mocked pytest, smoke, eval gates |
 | IaC | **Terraform** for AKS create/destroy (Phase 6) |
 
-## Stack (target)
+## Stack
 
 - **Python 3.13** + **FastAPI** — `/health` + `/v1/chat` proxy
 - **Docker** → **Kind** → **CI** → **evals** → **AKS** (same manifests)
@@ -71,18 +71,14 @@ Response shape (approx):
 ```
 
 ```bash
-uv run pytest -v
+uv run pytest -m "not live" -v
 ```
 
-Tests mock `main.chat` so CI does not call Azure / spend tokens.
+`-m "not live"` runs only the mocked tests (they patch `main.chat`), so nothing calls Azure or spends tokens — same as CI. Plain `pytest` also runs the `live` tests, which need a running app at `BASE_URL`.
 
 **Evals:** `tests/test_evals.py` — `pass_scorer` + mocked golden cases in CI (`-m "not live"`). Live grading: `pytest tests/test_evals.py -m live` (needs port-forward / `BASE_URL`). Smoke: `tests/test_smoke.py` / `./probe_smoke.sh`.
 
 Layout: `src/main.py`, `config.py`, `openai_client.py`, `models.py`. Never commit `.env`.
-
-## Path (summary)
-
-Same as [What this project is](#what-this-project-is). Details and checklists: [docs/project-roadmap.md](docs/project-roadmap.md).
 
 ## Status
 
