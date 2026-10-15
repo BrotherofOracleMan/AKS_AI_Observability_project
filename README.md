@@ -12,7 +12,7 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 
 **Core path:** stub API → Azure OpenAI → Docker → Kind → thin CI → evals → AKS (Terraform)
 
-**Advanced (later):** Workload Identity → thin RAG → GitOps — see [docs/deferred-phases.md](docs/deferred-phases.md)
+**Advanced (later):** Workload Identity → thin RAG → GitOps — see [docs/project-roadmap.md](docs/project-roadmap.md#phase-7--workload-identity--secrets)
 
 ## Why this project
 
@@ -32,7 +32,7 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 - **Terraform** — RG + AKS in `infra/` (Phase 6)
 - **Azure OpenAI** — hosted chat model
 
-**Advanced (after Phase 6):** Workload Identity, thin RAG, GitOps — [docs/deferred-phases.md](docs/deferred-phases.md).
+**Advanced (after Phase 6):** Workload Identity, thin RAG, GitOps — [docs/project-roadmap.md](docs/project-roadmap.md#phase-7--workload-identity--secrets).
 
 ## Local setup
 
@@ -87,4 +87,4 @@ Phases **0–6 done** — the same image ran on Kind and on AKS (Terraform + ACR
 | [docs/architecture.md](docs/architecture.md) | How it fits together, why a proxy, Kind vs AKS, K8s networking + secrets, how to explain it |
 | [docs/runbook.md](docs/runbook.md) | AKS create → deploy → test → destroy, kubectl reference, debugging |
 | [docs/project-roadmap.md](docs/project-roadmap.md) | Phase checklists |
-| [docs/deferred-phases.md](docs/deferred-phases.md) | Optional next steps (API auth, Workload Identity, RAG, GitOps) |
+| [docs/project-roadmap.md](docs/project-roadmap.md#phase-7--workload-identity--secrets) | Optional next steps (API auth, Workload Identity, RAG, GitOps) |

@@ -91,7 +91,7 @@ curl -s http://localhost:8000/health
 BASE_URL=http://localhost:8000 uv run pytest tests/test_evals.py -m live -v
 ```
 
-Live tests call real Azure OpenAI and cost tokens. A public LoadBalancer is deferred until `/v1/chat` has auth — see [deferred-phases.md](deferred-phases.md#public-exposure--api-auth).
+Live tests call real Azure OpenAI and cost tokens. A public LoadBalancer is deferred until `/v1/chat` has auth — see [project-roadmap.md](project-roadmap.md#phase-8--public-exposure--api-auth).
 
 ## 7. Destroy (~5–15 min, mostly AKS)
 

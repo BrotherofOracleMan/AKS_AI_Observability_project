@@ -34,13 +34,13 @@ How the pieces fit, why it's built this way, and how to explain it.
 | **Fast testing** — mocked pytest in CI (no Azure calls); live smoke + golden evals against the real model through the same endpoint | ✅ Built |
 | **Key stays server-side** — only the proxy holds the Azure OpenAI key; clients send messages, never the model key | ✅ Built |
 | **Clients decoupled from the model** — clients depend on our `/v1/chat` contract, not on Azure's API | ✅ Built |
-| **Authentication + rate limiting** — per-client credentials, separate from the model key | ⏸️ Deferred — [deferred-phases.md](deferred-phases.md#public-exposure--api-auth) |
+| **Authentication + rate limiting** — per-client credentials, separate from the model key | ⏸️ Deferred — [project-roadmap.md](project-roadmap.md#phase-8--public-exposure--api-auth) |
 
 ### Keys: proxy credential vs model key
 
 - **Today:** clients need no credential at all — anyone who can reach `/v1/chat` can use the model through the proxy. That's why it's only reachable via port-forward.
 - **With auth:** each client gets its **own** proxy key; the proxy alone holds the **model** key. Revoke one client without rotating the Azure key; rate-limit and log per client.
-- **Later:** Workload Identity removes the model key entirely — the pod proves its identity to Azure ([deferred-phases.md](deferred-phases.md#workload-identity--secrets)).
+- **Later:** Workload Identity removes the model key entirely — the pod proves its identity to Azure ([project-roadmap.md](project-roadmap.md#phase-7--workload-identity--secrets)).
 
 ### Swapping the model
 
@@ -128,7 +128,7 @@ Two different kinds of "why". **Decisions** we chose and can defend ("I chose X 
 | **Kustomize overlay** (`deployments/aks/`) | Two copies of the YAML | One base; overlay holds only the differences (image + pull policy) → no drift | One more tool/concept (`-k`) |
 | **Kind first**, then AKS | Going straight to the cloud | Free, instant feedback loop; learn K8s without a meter running | Kind ≠ real cloud (no registry, no cloud identity) — AKS still needed to prove it |
 | **Secret injected at runtime** (`envFrom`) | Baking config into the image | Same image everywhere; secrets stay out of git and the image | K8s Secrets are only base64 → Workload Identity next |
-| **port-forward** for access | Public LoadBalancer | `/v1/chat` has no auth — a public IP lets anyone spend tokens | Add auth + rate limiting, then expose ([deferred-phases.md](deferred-phases.md#public-exposure--api-auth)) |
+| **port-forward** for access | Public LoadBalancer | `/v1/chat` has no auth — a public IP lets anyone spend tokens | Add auth + rate limiting, then expose ([project-roadmap.md](project-roadmap.md#phase-8--public-exposure--api-auth)) |
 | **Mocked tests in CI**, live tests local | Live tests in CI | CI is fast, free, deterministic; no secrets in CI | Real-model regressions only caught when you run live evals |
 | **Golden evals** with `contains` / `not_contains` | LLM-as-judge or Foundry evaluators | Cheap, deterministic, explainable gate | Only works for clear-answer prompts |
 | **Terraform** + destroy after use | Portal clicks / leaving the cluster up | Reproducible create/destroy; ~$0.08/hr only while used | ~15 min to recreate; ACR name changes each time |
