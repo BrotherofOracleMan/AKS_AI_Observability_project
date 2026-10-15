@@ -14,8 +14,6 @@ A small FastAPI **LLM proxy** (`/v1/chat`) that sits between clients and **Azure
 
 **Advanced (later):** Workload Identity → thin RAG → GitOps — see [docs/deferred-phases.md](docs/deferred-phases.md)
 
-**Out of scope:** heavy observability (covered at work), GPU pools, service mesh, multi-cluster, fine-tuning.
-
 ## Why this project
 
 | Goal | How this helps |
