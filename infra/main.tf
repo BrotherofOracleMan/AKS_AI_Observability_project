@@ -36,15 +36,17 @@ resource "azurerm_container_registry" "acr" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
-  admin_enabled = false
+  admin_enabled       = false
 }
 
 # AKS cluster (destroy when idle — node hours dominate cost)
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = var.aks_name
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  dns_prefix          = var.dns_prefix
+  name                      = var.aks_name
+  resource_group_name       = azurerm_resource_group.rg.name
+  location                  = azurerm_resource_group.rg.location
+  dns_prefix                = var.dns_prefix
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
 
   default_node_pool {
     name = "default"
@@ -65,4 +67,31 @@ resource "azurerm_role_assignment" "aks_to_acr_pull" {
   # Nit: kubelet_identity uses object_id (cluster identity uses principal_id)
   principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
   skip_service_principal_aad_check = true
+}
+
+resource "azurerm_role_assignment" "openai_role" {
+  scope                            = data.azurerm_cognitive_account.openai.id
+  role_definition_name             = "Cognitive Services OpenAI User"
+  principal_id                     = azurerm_user_assigned_identity.aks_project_identity.principal_id
+  skip_service_principal_aad_check = true
+}
+
+#Create the user assigned identity
+resource "azurerm_user_assigned_identity" "aks_project_identity" {
+  name                = "ai_on_aks"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+}
+
+resource "azurerm_federated_identity_credential" "ai_proxy_federated" {
+  name                      = "ai_proxy_federated"
+  user_assigned_identity_id = azurerm_user_assigned_identity.aks_project_identity.id
+  issuer                    = azurerm_kubernetes_cluster.aks.oidc_issuer_url
+  subject                   = "system:serviceaccount:default:ai-proxy"
+  audience                  = ["api://AzureADTokenExchange"]
+}
+
+data "azurerm_cognitive_account" "openai" {
+  name                = "ai-aks-learning"
+  resource_group_name = "ai_aks_resource_group"
 }

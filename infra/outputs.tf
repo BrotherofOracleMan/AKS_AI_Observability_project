@@ -20,3 +20,8 @@ output "aks_resource_group_name" {
 
 # Nit: dropped aks_kube_config output — use:
 #   az aks get-credentials --resource-group <rg> --name <aks_name>
+
+output "workload_identity_client_id" {
+  value       = azurerm_user_assigned_identity.aks_project_identity.client_id
+  description = "Client ID for the ai-proxy ServiceAccount annotation"
+}
