@@ -1,5 +1,8 @@
+namespace: ai-proxy-ns
+
 resources:
   - ../k8
+  - namespace.yaml
 
 images:
     - name: ai-on-kubernetes

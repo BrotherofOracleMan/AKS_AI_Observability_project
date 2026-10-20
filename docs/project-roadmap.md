@@ -236,8 +236,8 @@ Keyless identity → [Phase 7](#phase-7--workload-identity--secrets).
 
 **Why:** Long-lived API keys in Secrets are a weak demo story. Workload Identity is what production AKS + Azure AI setups aim for. Comes first because removing the key also simplifies Phase 11 (GitOps).
 
-- [ ] Terraform: `workload_identity_enabled = true` + `oidc_issuer_enabled = true` on the AKS cluster (the OIDC issuer already came up enabled by AKS default; workload identity was off)
-- [ ] User-assigned managed identity with the **Cognitive Services OpenAI User** role on the Azure OpenAI resource (`ai_aks_resource_group` isn't Terraform-managed → reference it with a `data` block), plus a federated credential for the pod's ServiceAccount
+- [x] Terraform: `workload_identity_enabled = true` + `oidc_issuer_enabled = true` on the AKS cluster (the OIDC issuer already came up enabled by AKS default; workload identity was off)
+- [x] User-assigned managed identity with the **Cognitive Services OpenAI User** role on the Azure OpenAI resource (`ai_aks_resource_group` isn't Terraform-managed → reference it with a `data` block), plus a federated credential for the pod's ServiceAccount — applied and verified on AKS (webhook running, OIDC issuer on), then destroyed
 - [ ] Dedicated ServiceAccount for the proxy (pods use `default` today) + `azure.workload.identity/use: "true"` pod label — in the AKS overlay
 - [ ] Code: `openai_client.py` passes `api_key=` → use `azure_ad_token_provider` (`azure-identity` `DefaultAzureCredential`) when no key is set
 - [ ] Config: make `AZURE_OPENAI_API_KEY` optional in `src/config.py` — it's required today, so removing it from the Secret crash-loops the pod (same failure as the `BASE_URL` story). **Kind keeps using the key** (its OIDC issuer isn't reachable by Entra), so support both

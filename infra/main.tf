@@ -87,7 +87,7 @@ resource "azurerm_federated_identity_credential" "ai_proxy_federated" {
   name                      = "ai_proxy_federated"
   user_assigned_identity_id = azurerm_user_assigned_identity.aks_project_identity.id
   issuer                    = azurerm_kubernetes_cluster.aks.oidc_issuer_url
-  subject                   = "system:serviceaccount:default:ai-proxy"
+  subject                   = "system:serviceaccount:ai-proxy-ns:ai-proxy"
   audience                  = ["api://AzureADTokenExchange"]
 }
 
