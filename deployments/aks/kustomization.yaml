@@ -17,3 +17,14 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
         value: IfNotPresent
+      - op: add
+        path: /spec/template/metadata/labels/azure.workload.identity~1use
+        value: "true"
+  - target:
+      kind: ServiceAccount
+      name: ai-proxy
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value: 
+          azure.workload.identity/client-id: <CLIENT_ID>

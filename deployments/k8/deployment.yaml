@@ -15,6 +15,7 @@ spec:
       labels:
         app: ai-on-kubernetes
     spec:
+      serviceAccountName: ai-proxy
       containers:
         - name: proxy
           image: ai-on-kubernetes:local
