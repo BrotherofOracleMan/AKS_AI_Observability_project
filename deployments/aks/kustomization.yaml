@@ -7,7 +7,7 @@ resources:
 images:
     - name: ai-on-kubernetes
       newName: <REGISTRY>/ai-on-kubernetes
-      newTag: v1
+      newTag: v3
 
 patches:
   - target:

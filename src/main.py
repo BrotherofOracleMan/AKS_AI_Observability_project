@@ -21,8 +21,8 @@ def chat_endpoint(request: ChatRequest):
     initial_timestamp = time.time()
     
     logger.info(f"Received request: {request_id} at {initial_timestamp}")
-    latency_ms = int((time.time() - initial_timestamp) * 1000)
     result = chat(request)
+    latency_ms = int((time.time() - initial_timestamp) * 1000)
     logger.info(f"Request {request_id} processed in {latency_ms}ms")
 
 

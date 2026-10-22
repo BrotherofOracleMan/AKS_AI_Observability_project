@@ -15,9 +15,9 @@ How the pieces fit, why it's built this way, and how to explain it.
 │  Pod: FastAPI proxy (our image)                          │
 │    /health   → liveness + readiness probes               │
 │    /v1/chat  → validate → call model → log → respond     │
-│    env vars  ← Secret azure-openai (endpoint, key, ...)  │
+│    env vars  ← Secret azure-openai (endpoint, model, ...)│
 └────────┼─────────────────────────────────────────────────┘
-         │  HTTPS + API key
+         │  HTTPS + API key (Kind) or Entra token (AKS, Workload Identity)
          ▼
  Azure OpenAI (ai_aks_resource_group)
    the model — hosted, scaled, and run on Microsoft's GPUs
@@ -99,7 +99,7 @@ container env vars  →  pydantic-settings Config()  →  app
 ```
 
 - **Precedence in `Config()`:** init args → **environment variables** → `.env` file → field defaults. Locally the values come from `.env`; in the pod they come only from env vars — `.dockerignore` keeps `.env` out of the image.
-- **All 5 fields are required** (`AZURE_OPENAI_ENDPOINT`, `_API_KEY`, `_MODEL`, `_API_VERSION`, `BASE_URL`). A missing one → `ValidationError` at import → `CrashLoopBackOff`.
+- **4 fields are required** (`AZURE_OPENAI_ENDPOINT`, `_MODEL`, `_API_VERSION`, `BASE_URL`). A missing one → `ValidationError` at import → `CrashLoopBackOff`. `AZURE_OPENAI_API_KEY` is optional: set → the client uses the key (Kind, local `.env`); unset → `DefaultAzureCredential` gets an Entra token (Workload Identity on AKS, `az login` on a Mac).
 - **`BASE_URL` is only used by tests** (`test_smoke.py`, `test_evals.py`) as the address to call. The app doesn't use it, but it must exist in the pod because the field is required — `http://localhost:8000` is a placeholder there.
 - Field names match env vars **case-insensitively** (`azure_openai_api_key` ← `AZURE_OPENAI_API_KEY`). The `env="..."` arguments are pydantic v1 syntax that v2 ignores.
 - **Works on any number of nodes:** a Secret is cluster state, not node state. Every replica on every node gets the same values.

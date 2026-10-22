@@ -17,17 +17,18 @@ Copy-paste path for running the app on AKS. Same image, same base manifests, sam
 
 - `az login` (right subscription: `az account show -o table`)
 - Docker Desktop running, Terraform ≥ 1.1, kubectl
-- `deployments/k8/secret.yaml` exists with all 5 keys: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_MODEL`, `AZURE_OPENAI_API_VERSION`, `BASE_URL` (`src/config.py` requires all of them)
+- `deployments/k8/secret.yaml` exists with `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_MODEL`, `AZURE_OPENAI_API_VERSION`, `BASE_URL` (all required by `src/config.py`). `AZURE_OPENAI_API_KEY` is optional: Kind needs it, AKS leaves it out (step 5) so the pod uses Workload Identity
+- Everything on AKS lives in namespace `ai-proxy-ns` — every `kubectl` command needs `-n ai-proxy-ns` (or run `kubectl config set-context --current --namespace=ai-proxy-ns` once after step 2)
 
 ## 1. Create infra (~5–10 min)
 
-Creates: resource group, ACR (random name suffix), AKS (1 node), AcrPull role for the nodes.
+Creates: resource group, ACR (random name suffix), AKS (1 node, OIDC issuer + workload identity on), AcrPull role for the nodes, managed identity `ai_on_aks` with **Cognitive Services OpenAI User** on `ai-aks-learning`, and its federated credential for `system:serviceaccount:ai-proxy-ns:ai-proxy`.
 
 ```bash
 cd infra
 export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 terraform init
-terraform plan -out tfplan        # expect: 5 to add, 0 to change, 0 to destroy
+terraform plan -out tfplan        # expect: 8 to add, 0 to change, 0 to destroy
 terraform apply tfplan
 ```
 
@@ -51,45 +52,74 @@ LOGIN=$(terraform output -raw acr_login_server)
 cd ..
 az acr login --name $ACR
 
-# Re-tag the existing amd64 v1 image (still tagged with an old ACR name locally):
-docker tag $(docker images -q --filter "reference=*/ai-on-kubernetes:v1" | head -1) $LOGIN/ai-on-kubernetes:v1
+# Re-tag the existing amd64 v3 image (still tagged with an old ACR name locally):
+docker tag $(docker images -q --filter "reference=*/ai-on-kubernetes:v3" | head -1) $LOGIN/ai-on-kubernetes:v3
 # Or rebuild (amd64 is required — the node is x86):
-# docker build --platform linux/amd64 -t $LOGIN/ai-on-kubernetes:v1 .
+# docker build --platform linux/amd64 -t $LOGIN/ai-on-kubernetes:v3 .
 
-docker push $LOGIN/ai-on-kubernetes:v1
+docker push $LOGIN/ai-on-kubernetes:v3
 ```
 
-## 4. Point the AKS overlay at the new ACR
-
-The committed overlay has a placeholder: `newName: <REGISTRY>/ai-on-kubernetes`. Replace `<REGISTRY>` with `$LOGIN` locally (don't commit the real name — it changes every recreate), then check:
+The Dockerfile installs from `requirements.txt`, not `pyproject.toml`. After any `uv add`, re-export before building, or the image silently misses the package (`ModuleNotFoundError` on start):
 
 ```bash
-echo $LOGIN
-kubectl kustomize deployments/aks | grep -E 'image:|imagePullPolicy:'
-# expect: image: <LOGIN>/ai-on-kubernetes:v1
-#         imagePullPolicy: IfNotPresent
+uv export --no-dev --no-emit-project -o requirements.txt
 ```
+
+## 4. Fill the AKS overlay placeholders
+
+The committed overlay has two placeholders that change on every recreate — fill them locally, **don't commit the real values**:
+
+| Placeholder | Replace with |
+|---|---|
+| `newName: <REGISTRY>/ai-on-kubernetes` | `$LOGIN` |
+| `azure.workload.identity/client-id: <CLIENT_ID>` | `terraform -chdir=infra output -raw workload_identity_client_id` |
+
+```bash
+kubectl kustomize deployments/aks | grep -E 'image:|imagePullPolicy:|client-id|workload.identity/use|namespace:'
+# expect: image: <LOGIN>/ai-on-kubernetes:v3
+#         imagePullPolicy: IfNotPresent
+#         azure.workload.identity/client-id: <real GUID>
+#         azure.workload.identity/use: "true"
+#         namespace: ai-proxy-ns   (×3)
+```
+
+Revert both before committing: `git checkout -- deployments/aks/kustomization.yaml` (only if you made no other edits there).
 
 ## 5. Deploy
 
 ```bash
 kubectl config current-context                # must be the AKS context
-kubectl apply -f deployments/k8/secret.yaml   # secret first
-kubectl apply -k deployments/aks              # -k, not -f
-kubectl rollout status deploy/ai-on-kubernetes
-kubectl get pods -l app=ai-on-kubernetes      # 1/1 Running
+kubectl apply -k deployments/aks              # -k, not -f; creates ai-proxy-ns + SA + Deployment + Service
+grep -v AZURE_OPENAI_API_KEY deployments/k8/secret.yaml | kubectl apply -n ai-proxy-ns -f -   # keyless secret
+kubectl -n ai-proxy-ns rollout status deploy/ai-on-kubernetes
+kubectl -n ai-proxy-ns get pods -l app=ai-on-kubernetes      # 1/1 Running
+```
+
+- The secret has no namespace in the file, so `-n ai-proxy-ns` is required — without it, it lands in `default` and the pod can't see it.
+- The pod is created before the secret exists, so it shows `CreateContainerConfigError` for a minute and then starts on its own.
+- **Leave the key out on AKS.** If the secret has `AZURE_OPENAI_API_KEY`, `src/openai_client.py` uses the key and Workload Identity is never exercised.
+
+Check the webhook injected the identity:
+
+```bash
+POD=$(kubectl -n ai-proxy-ns get pod -l app=ai-on-kubernetes -o name | head -1)
+kubectl -n ai-proxy-ns exec $POD -- env | grep -E '^AZURE_(CLIENT_ID|TENANT_ID|FEDERATED_TOKEN_FILE|AUTHORITY_HOST)='
+kubectl -n ai-proxy-ns exec $POD -- env | grep -c '^AZURE_OPENAI_API_KEY='   # 0
 ```
 
 ## 6. Test (port-forward only — no public IP)
 
 ```bash
-kubectl port-forward svc/ai-on-kubernetes 8000:8000    # leave running
+kubectl -n ai-proxy-ns port-forward svc/ai-on-kubernetes 8000:8000    # leave running
 
 # second terminal:
 curl -s http://localhost:8000/health
 ./probe_smoke.sh
-BASE_URL=http://localhost:8000 uv run pytest tests/test_evals.py -m live -v
+BASE_URL=http://localhost:8000 uv run pytest tests/test_smoke.py tests/test_evals.py -m live -v
 ```
+
+A `200` from `/v1/chat` with no key in the pod proves the identity chain: ServiceAccount token → Entra ID → `ai_on_aks` → OpenAI User role → model. Logs show `POST …/chat/completions "HTTP/1.1 200 OK"`.
 
 Live tests call real Azure OpenAI and cost tokens. A public LoadBalancer is deferred until `/v1/chat` has auth — see [project-roadmap.md](project-roadmap.md#phase-8--public-exposure--api-auth).
 
@@ -99,7 +129,7 @@ Live tests call real Azure OpenAI and cost tokens. A public LoadBalancer is defe
 # stop the port-forward first (Ctrl+C)
 cd infra
 export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-terraform plan -destroy           # expect: 5 to destroy
+terraform plan -destroy           # expect: 8 to destroy
 terraform destroy                 # don't Ctrl+C; if it fails, run it again
 
 # verify
@@ -194,7 +224,12 @@ Paired `GET /health 200` lines every few seconds are the liveness + readiness pr
 | `ImagePullBackOff` | Overlay `newName` still points at an old ACR, or tag not pushed → steps 3–4 |
 | `CrashLoopBackOff` + `exec format error` | arm64 image → rebuild with `--platform linux/amd64` |
 | `CrashLoopBackOff` + pydantic `ValidationError` | Secret missing a key → fix `secret.yaml`, re-apply, `kubectl rollout restart deploy/ai-on-kubernetes` |
-| `CreateContainerConfigError` | Secret not applied → `kubectl apply -f deployments/k8/secret.yaml` |
+| `CreateContainerConfigError` | Secret not applied, or applied to `default` → step 5 (`-n ai-proxy-ns`) |
+| `services "ai-on-kubernetes" not found` / `No resources found` | Forgot `-n ai-proxy-ns` |
+| `ModuleNotFoundError` on start | `requirements.txt` not re-exported after `uv add` → step 3 |
+| `DefaultAzureCredential failed to retrieve a token` | No `AZURE_*` env in the pod → pod label or `<CLIENT_ID>` missing (step 4); delete the pod after fixing |
+| `AADSTS70021` / no matching federated identity | Namespace or ServiceAccount doesn't match the federated credential subject `system:serviceaccount:ai-proxy-ns:ai-proxy` |
+| `401` / `PermissionDenied` from Azure OpenAI | Role assignment on the new identity still propagating — wait a few minutes |
 | `kind not set` / `name not set` | Used `-f` on a kustomize folder → use `-k` |
 | `subscription ID could not be determined` | `export ARM_SUBSCRIPTION_ID=...` |
 | VM size not allowed / `InsufficientVCPUQuota` | Subscription limits; `Standard_D2als_v7` works here. B-series can't be an AKS system pool |

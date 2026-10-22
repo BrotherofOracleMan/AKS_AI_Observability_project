@@ -11,7 +11,7 @@ Like `.env`, but for Kubernetes.
 | Field | Your app uses it for |
 |-------|----------------------|
 | `AZURE_OPENAI_ENDPOINT` | Where to call Azure |
-| `AZURE_OPENAI_API_KEY` | Auth |
+| `AZURE_OPENAI_API_KEY` | Auth on Kind. Optional — leave it out on AKS, where the pod uses Workload Identity |
 | `AZURE_OPENAI_MODEL` | Which deployment |
 | `AZURE_OPENAI_API_VERSION` | API version |
 | `BASE_URL` | Only the tests use it, but `src/config.py` requires it — missing → `CrashLoopBackOff` |

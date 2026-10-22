@@ -1,9 +1,18 @@
 from config import config
 from openai import AzureOpenAI
 from models import ChatRequest
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+# Key set (Kind, local .env) → use it. No key (AKS) → Entra token via Workload Identity.
+if config.azure_openai_api_key:
+    auth = {"api_key": config.azure_openai_api_key}
+else:
+    token_credential = DefaultAzureCredential()
+    token_provider = get_bearer_token_provider(token_credential, "https://cognitiveservices.azure.com/.default")
+    auth = {"azure_ad_token_provider": token_provider}
 
 client = AzureOpenAI(
-    api_key=config.azure_openai_api_key,
+    **auth,
     azure_endpoint=config.azure_openai_endpoint,
     api_version=config.azure_openai_api_version
 )

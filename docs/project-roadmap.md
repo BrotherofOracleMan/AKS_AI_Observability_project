@@ -9,7 +9,7 @@ Learning-focused guide. Hero skills: **Docker + Kubernetes + AI**. Heavy observa
 → 7 Workload Identity → 8 API auth → 9 Thin RAG → 10 Go → 11 GitOps
 ```
 
-**Status:** Phases **0–6 done**; next: [Phase 7](#phase-7--workload-identity--secrets). Architecture + how to explain it: [architecture.md](architecture.md). AKS commands: [runbook.md](runbook.md).
+**Status:** Phases **0–6 done**, Phase 7 core done (keyless on AKS; egress lock-down open); next: [Phase 8](#phase-8--public-exposure--api-auth). Architecture + how to explain it: [architecture.md](architecture.md). AKS commands: [runbook.md](runbook.md).
 
 ---
 
@@ -238,11 +238,11 @@ Keyless identity → [Phase 7](#phase-7--workload-identity--secrets).
 
 - [x] Terraform: `workload_identity_enabled = true` + `oidc_issuer_enabled = true` on the AKS cluster (the OIDC issuer already came up enabled by AKS default; workload identity was off)
 - [x] User-assigned managed identity with the **Cognitive Services OpenAI User** role on the Azure OpenAI resource (`ai_aks_resource_group` isn't Terraform-managed → reference it with a `data` block), plus a federated credential for the pod's ServiceAccount — applied and verified on AKS (webhook running, OIDC issuer on), then destroyed
-- [x] Dedicated ServiceAccount `ai-proxy` (base) + `azure.workload.identity/use: "true"` pod label and `client-id` annotation (AKS overlay, `<CLIENT_ID>` placeholder) — not yet deployed
-- [ ] Code: `openai_client.py` passes `api_key=` → use `azure_ad_token_provider` (`azure-identity` `DefaultAzureCredential`) when no key is set
-- [ ] Config: make `AZURE_OPENAI_API_KEY` optional in `src/config.py` — it's required today, so removing it from the Secret crash-loops the pod (same failure as the `BASE_URL` story). **Kind keeps using the key** (its OIDC issuer isn't reachable by Entra), so support both
+- [x] Dedicated ServiceAccount `ai-proxy` (base) + `azure.workload.identity/use: "true"` pod label and `client-id` annotation (AKS overlay, `<CLIENT_ID>` placeholder) — deployed and verified on AKS: webhook injects `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/`AZURE_FEDERATED_TOKEN_FILE`/`AZURE_AUTHORITY_HOST`
+- [x] Code: `openai_client.py` passes `api_key=` → use `azure_ad_token_provider` (`azure-identity` `DefaultAzureCredential`) when no key is set
+- [x] Config: make `AZURE_OPENAI_API_KEY` optional in `src/config.py` — it's required today, so removing it from the Secret crash-loops the pod (same failure as the `BASE_URL` story). **Kind keeps using the key** (its OIDC issuer isn't reachable by Entra), so support both. Verified 2026-10-22: AKS secret without the key → `/v1/chat` 200, live smoke tests pass
 - [ ] Egress lock-down: set `network_profile.network_policy` (empty on the last cluster, which used Azure CNI overlay, so NetworkPolicy objects are silently ignored), then deny all egress except DNS + 443. Allowing only the OpenAI hostname needs Cilium FQDN policies (paid add-on) or Azure Firewall — out of scope for a lab
-- [ ] Update `docs/runbook.md` with the identity story
+- [x] Update `docs/runbook.md` with the identity story
 
 **Done when:** chat on AKS works **without** an API key in the pod Secret; Kind still works with the key; you can explain the identity chain in an interview.
 
