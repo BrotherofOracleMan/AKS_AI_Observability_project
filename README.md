@@ -88,5 +88,6 @@ Phases **0–6 done** — the same image ran on Kind and on AKS (Terraform + ACR
 |-----|--------------|
 | [docs/architecture.md](docs/architecture.md) | How it fits together, why a proxy, Kind vs AKS, K8s networking + secrets, how to explain it |
 | [docs/runbook.md](docs/runbook.md) | AKS create → deploy → test → destroy, kubectl reference, debugging |
+| [docs/runbook-kind.md](docs/runbook-kind.md) | Kind create → deploy → test → tear down, debugging |
 | [docs/project-roadmap.md](docs/project-roadmap.md) | Phase checklists |
 | [docs/project-roadmap.md](docs/project-roadmap.md#phase-7--workload-identity--secrets) | Optional next steps (API auth, Workload Identity, RAG, GitOps) |

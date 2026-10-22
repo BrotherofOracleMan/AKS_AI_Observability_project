@@ -1,6 +1,6 @@
 # Kind manifests — learning guide
 
-These manifests are the Kind setup **and** the Kustomize base that the AKS overlay (`deployments/aks/`) builds on. AKS commands: [runbook.md](../../docs/runbook.md).
+These manifests are the Kind setup **and** the Kustomize base that the AKS overlay (`deployments/aks/`) builds on. Kind commands: [runbook-kind.md](../../docs/runbook-kind.md). AKS commands: [runbook.md](../../docs/runbook.md).
 
 Four small files. Read top-to-bottom in this order.
 

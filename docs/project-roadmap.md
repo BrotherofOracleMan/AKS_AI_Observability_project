@@ -46,6 +46,7 @@ ai-on-kubernetes/
   docs/project-roadmap.md   # this file
   docs/architecture.md      # design, K8s concepts, how to explain it
   docs/runbook.md           # AKS create → deploy → test → destroy
+  docs/runbook-kind.md      # Kind create → deploy → test → tear down
   src/                      # FastAPI app
   tests/                    # test_mock.py, test_smoke.py, test_evals.py (Phase 5)
   deployments/k8/           # Kind manifests + Kustomize base

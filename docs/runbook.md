@@ -1,6 +1,6 @@
 # Runbook — AKS create → deploy → test → destroy
 
-Copy-paste path for running the app on AKS. Same image, same base manifests, same tests as Kind.
+Copy-paste path for running the app on AKS. Same image, same base manifests, same tests as Kind ([runbook-kind.md](runbook-kind.md)).
 
 ## Cost
 
