@@ -121,7 +121,7 @@ BASE_URL=http://localhost:8000 uv run pytest tests/test_smoke.py tests/test_eval
 
 A `200` from `/v1/chat` with no key in the pod proves the identity chain: ServiceAccount token → Entra ID → `ai_on_aks` → OpenAI User role → model. Logs show `POST …/chat/completions "HTTP/1.1 200 OK"`.
 
-Live tests call real Azure OpenAI and cost tokens. A public LoadBalancer is deferred until `/v1/chat` has auth — see [project-roadmap.md](project-roadmap.md#phase-8--public-exposure--api-auth).
+Live tests call real Azure OpenAI and cost tokens. A public LoadBalancer is deferred until `/v1/chat` has auth — see [project-roadmap.md](project-roadmap.md#phase-8--api-auth--resilience).
 
 ## 7. Destroy (~5–15 min, mostly AKS)
 
