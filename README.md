@@ -1,4 +1,4 @@
-# AI on Kubernetes
+# Azure AI on Kubernetes
 
 Learning / portfolio project: **Dockerize** a FastAPI **Azure OpenAI proxy**, run it on **Kubernetes** (Kind first), then deploy the same manifests to **AKS** with **Terraform**.
 

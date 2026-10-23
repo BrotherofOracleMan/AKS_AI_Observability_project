@@ -1,4 +1,4 @@
-# Project Roadmap: AI on Kubernetes
+# Project Roadmap: Azure AI on Kubernetes
 
 Learning-focused guide. Hero skills: **Docker + Kubernetes + AI**. Heavy observability is out of scope — thin logs + `kubectl` only.
 
@@ -41,7 +41,7 @@ The model runs in Azure OpenAI (Microsoft's hardware); we build and run the prox
 ## Suggested repo layout
 
 ```
-ai-on-kubernetes/
+azure_ai_on_kubernetes/
   README.md
   docs/project-roadmap.md   # this file
   docs/architecture.md      # design, K8s concepts, how to explain it
@@ -152,7 +152,7 @@ See [deployments/k8/README.md](../deployments/k8/README.md).
 
 **Done when:** CI runs mocked tests + builds an image; red tests fail the workflow. ✅  
 
-Verified green run: [Actions #34544850875](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875) (`test / test` + `build`).
+Verified green run: [Actions #34544850875](https://github.com/BrotherofOracleMan/azure_ai_on_kubernetes/actions/runs/34544850875) (`test / test` + `build`).
 
 **Does not require AKS.** Live Kind smoke stays local (`./probe_smoke.sh`).
 
@@ -374,7 +374,7 @@ Run the live part on **Kind** (free, instant); talk through AKS. Full talk track
 | 1 — Azure OpenAI | **Done** | Live chat + mocks |
 | 2 — Docker | **Done** | Local image + `docker run` smoke (ACR push → Phase 6) |
 | 3 — Kind | **Done** | Manifests + `./probe_smoke.sh` |
-| 4 — Thin CI | **Done** | Mocked pytest + `docker build` ([green run](https://github.com/BrotherofOracleMan/AKS_AI_Observability_project/actions/runs/34544850875)) |
+| 4 — Thin CI | **Done** | Mocked pytest + `docker build` ([green run](https://github.com/BrotherofOracleMan/azure_ai_on_kubernetes/actions/runs/34544850875)) |
 | 5 — Thin evals | **Done** | `pass_scorer` + CI (`not live`) + live httpx golden path |
 | 6 — AKS + Terraform | **Done** | ACR + AKS via Terraform, Kustomize overlay, port-forward tests; [runbook.md](runbook.md) |
 | 7 — Workload Identity | Not started | Keyless AKS → Azure OpenAI; egress lock-down |
