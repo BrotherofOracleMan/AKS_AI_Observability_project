@@ -35,7 +35,7 @@ The model runs in Azure OpenAI (Microsoft's hardware); we build and run the prox
 
 **Goals:** learn Azure + AI hands-on, with testing at every layer. API proxy → Docker → Kind + smoke → CI merge gates → eval gate → AKS with Terraform (same manifests) → keyless identity → authenticated, failure-tolerant API → deploy-and-test on Kind in CI → Azure observability → thin RAG with model-graded evals.
 
-**Non-goals:** Prometheus/Grafana stacks, GPU pools, service mesh, fine-tuning, multi-cluster, GitOps, Go tooling — see [Out of scope](#out-of-scope--maybe-later).
+**Non-goals:** Prometheus/Grafana stacks, GPU pools, service mesh, fine-tuning, multi-cluster, GitOps, Go tooling, network egress lock-down.
 
 ---
 
@@ -243,7 +243,6 @@ Keyless identity → [Phase 7](#phase-7--workload-identity--secrets).
 - [x] Dedicated ServiceAccount `ai-proxy` (base) + `azure.workload.identity/use: "true"` pod label and `client-id` annotation (AKS overlay, `<CLIENT_ID>` placeholder) — deployed and verified on AKS: webhook injects `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/`AZURE_FEDERATED_TOKEN_FILE`/`AZURE_AUTHORITY_HOST`
 - [x] Code: `openai_client.py` passes `api_key=` → use `azure_ad_token_provider` (`azure-identity` `DefaultAzureCredential`) when no key is set
 - [x] Config: make `AZURE_OPENAI_API_KEY` optional in `src/config.py` — it's required today, so removing it from the Secret crash-loops the pod (same failure as the `BASE_URL` story). **Kind keeps using the key** (its OIDC issuer isn't reachable by Entra), so support both. Verified 2026-10-22: AKS secret without the key → `/v1/chat` 200, live smoke tests pass
-- Egress lock-down → moved to [Out of scope](#out-of-scope--maybe-later)
 - [x] Update `docs/runbook.md` with the identity story
 
 **Done when:** chat on AKS works **without** an API key in the pod Secret; Kind still works with the key; you can explain the identity chain in an interview.
@@ -289,13 +288,15 @@ Keyless identity → [Phase 7](#phase-7--workload-identity--secrets).
 - [ ] GitHub Actions job: create a Kind cluster (`helm/kind-action`), build + `kind load` the image, apply `deployments/k8` with a CI secret, `kubectl rollout status --timeout`
 - [ ] Run `tests/test_smoke.py` against the pod via port-forward
 - [ ] On failure, dump `kubectl describe` / `logs` / events into the job output
+- [ ] Contract tests: Schemathesis against the app's `/openapi.json` (mock mode) — generated requests must never get a `500`
 - [ ] Image build waits for this job (same gate as today's mock tests)
 
-**Done when:** a broken manifest (e.g. wrong Service selector) fails CI with a readable reason.
+**Done when:** a broken manifest (e.g. wrong Service selector) fails CI with a readable reason, and Schemathesis runs clean.
 
 | Reading | Why | Status |
 |---------|-----|--------|
 | [kind in CI](https://kind.sigs.k8s.io/docs/user/quick-start/) | Cluster in a GitHub runner | Known Kind; **New** in CI |
+| [Schemathesis](https://schemathesis.readthedocs.io/) | Property-based API tests from an OpenAPI spec | New |
 
 ---
 
@@ -311,13 +312,15 @@ Keyless identity → [Phase 7](#phase-7--workload-identity--secrets).
 - [ ] KQL queries: p50/p95 latency, tokens per request, estimated cost per day, error rate
 - [ ] A small workbook or dashboard with those queries
 - [ ] Kind: also works (connection string in the Kind secret); CI mock mode leaves it off
+- [ ] Load test with k6 or Locust: throughput on Kind in mock mode, then a short, capped run against real Azure to find where `429`s start — check Phase 8 retries hold up and watch it in App Insights
 
-**Done when:** you can answer "what did yesterday's requests cost and what was p95 latency?" from Azure.
+**Done when:** you can answer "what did yesterday's requests cost and what was p95 latency?" from Azure, and you know the request rate where Azure starts throttling.
 
 | Reading | Why | Status |
 |---------|-----|--------|
 | [Azure Monitor OpenTelemetry for Python](https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable?tabs=python) | One-call setup | New |
 | [KQL quick reference](https://learn.microsoft.com/kusto/query/kql-quick-reference) | Query logs/traces | New |
+| [k6](https://grafana.com/docs/k6/latest/) | Scripted load tests | New |
 
 ---
 
@@ -341,20 +344,6 @@ Keyless identity → [Phase 7](#phase-7--workload-identity--secrets).
 |---------|-----|--------|
 | [RAG in Azure AI Search](https://learn.microsoft.com/azure/search/retrieval-augmented-generation-overview) | Concepts + the "real" Azure path | New |
 | [Eval approach for generative AI](https://learn.microsoft.com/azure/ai-foundry/concepts/evaluation-approach-gen-ai) | Groundedness/relevance metrics | Skimmed in Phase 5 |
-
----
-
-## Out of scope / maybe later
-
-Cut to keep the project on Azure + AI + testing. Notes kept so the thinking isn't lost.
-
-| Idea | Why cut | Notes if picked up |
-|---|---|---|
-| **Egress lock-down** (was Phase 7) | Networking-heavy; the useful version needs paid add-ons | Set `network_profile.network_policy` (empty on the last cluster — Azure CNI overlay ignores NetworkPolicy objects), deny all egress except DNS + 443. Allowing only the OpenAI hostname needs Cilium FQDN policies or Azure Firewall |
-| **Go + client-go** (was Phase 10) | Not Azure, AI or testing; `kubectl rollout status` covers the CI readiness check | `cmd/k8s-inspect/`: pod phase, ready condition, restarts, image tag; exit non-zero if no ready replicas |
-| **GitOps** (was Phase 11) | Large platform effort; tight on a 2-vCPU node | Flux (AKS extension) on the `deployments/aks/` overlay; needs a stable ACR name, a committed ConfigMap for non-secret config, and Sealed Secrets or Key Vault CSI for the Phase 8 proxy key |
-| **Load testing** (k6 / Locust) | Stretch | p50/p95 under concurrency; find where Azure starts returning 429 — pairs with Phases 8 and 10 |
-| **Contract testing** (Schemathesis) | Stretch | Fuzz `/v1/chat` from FastAPI's OpenAPI spec |
 
 ---
 
@@ -415,6 +404,6 @@ Run the live part on **Kind** (free, instant); talk through AKS. Full talk track
 | 6 — AKS + Terraform | **Done** | ACR + AKS via Terraform, Kustomize overlay, port-forward tests; [runbook.md](runbook.md) |
 | 7 — Workload Identity | **Done** | Keyless AKS → Azure OpenAI; Kind keeps the key; [runbook.md](runbook.md) |
 | 8 — API auth + resilience | Not started | Key header, rate limit, retries, fault-injection tests |
-| 9 — Kind in CI | Not started | Deploy + smoke on every push, mock mode |
-| 10 — Observability | Not started | App Insights, KQL, cost per request |
+| 9 — Kind in CI | Not started | Deploy + smoke + Schemathesis on every push, mock mode |
+| 10 — Observability | Not started | App Insights, KQL, cost per request, load test |
 | 11 — Thin RAG + LLM-as-judge | Not started | Keyword retrieval first; pass-rate gate |
